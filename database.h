@@ -16,4 +16,12 @@ bool get_categories_db(char *categories);
 bool get_cinemas_db(char *cinemas);
 bool browse_films_db(const char *category_id, const char *cinema_id, const char *start_time, const char *end_time, char *films);
 
+bool get_cinemas_by_film(const char *film_id, char *cinemas);
+bool get_shows(const char *film_id, const char *cinema_id, char *shows);
+bool get_seat_map(const char *show_id, char *seat_map_str);
+bool get_film_name(const char *film_id, char *film_name);
+bool get_cinema_name(const char *cinema_id, char *cinema_name);
+bool get_show_times(const char *show_id, char *show_date, char *start_time, char *end_time);
+bool book_ticket_db(const char *username, const char *film_id, const char *cinema_id, const char *show_id, int seat_number, const char *seat_list_str, char *response);
+
 #endif // DATABASE_H

@@ -88,8 +88,11 @@ void *client_handler(void *socket_desc) {
     char client_message[BUFFER_SIZE];
 
     // Receive messages from client
-    while ((read_size = recv(sock, client_message, BUFFER_SIZE, 0)) > 0) {
+    while ((read_size = recv(sock, client_message, BUFFER_SIZE - 1, 0)) > 0) {
         client_message[read_size] = '\0';
+
+        // Print the message received from the client
+        printf("\n=== Message Received from Client ===\n%s\n", client_message);
 
         // Process client message
         char response[BUFFER_SIZE];
@@ -102,9 +105,13 @@ void *client_handler(void *socket_desc) {
             send(sock, response, strlen(response), 0);
         }
 
+        // Optionally, print the response sent to the client
+        printf("\n=== Message Sent to Client ===\n%s\n", response);
+
         memset(client_message, 0, BUFFER_SIZE);
         memset(response, 0, BUFFER_SIZE);
     }
+
 
     if (read_size == 0) {
         puts("Client disconnected");

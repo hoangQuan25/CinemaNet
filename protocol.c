@@ -89,6 +89,87 @@ bool process_client_message(const char *message, char *response) {
         } else {
             strcpy(response, "2040\r\n");
         }
+    } else if (strcmp(command, "SHOW_CINEMA_BY_FILM") == 0) {
+        // Extract parameters
+        char *film_id = strtok(NULL, "\r\n");
+        char *token = strtok(NULL, "\r\n");
+
+        // Verify token (implement token verification)
+        if (!verify_token(token)) {
+            strcpy(response, "4010\r\n"); // Unauthorized
+            return false;
+        }
+
+        // Call the database function
+        if (get_cinemas_by_film(film_id, response)) {
+            // Prepend success code
+            char temp[BUFFER_SIZE];
+            strcpy(temp, response);
+            sprintf(response, "2000\r\n%s", temp);
+        } else {
+            strcpy(response, "2050\r\n");
+        }
+    } else if (strcmp(command, "SHOW_SHOWS") == 0) {
+        // Similar handling
+        char *film_id = strtok(NULL, "\r\n");
+        char *cinema_id = strtok(NULL, "\r\n");
+        char *token = strtok(NULL, "\r\n");
+
+        // Verify token (implement token verification)
+        if (!verify_token(token)) {
+            strcpy(response, "4010\r\n"); // Unauthorized
+            return false;
+        }
+
+        if (get_shows(film_id, cinema_id, response)) {
+            // Prepend success code
+            char temp[BUFFER_SIZE];
+            strcpy(temp, response);
+            sprintf(response, "2000\r\n%s", temp);
+        } else {
+            strcpy(response, "5000\r\n");
+        }
+    } else if (strcmp(command, "SHOW_SEAT_MAP") == 0) {
+        // Similar handling
+        char *show_id = strtok(NULL, "\r\n");
+        char *token = strtok(NULL, "\r\n");
+
+        // Verify token
+        if (!verify_token(token)) {
+            strcpy(response, "4010\r\n"); // Unauthorized
+            return false;
+        }
+
+        if (get_seat_map(show_id, response)) {
+            // Prepend success code
+            char temp[BUFFER_SIZE];
+            strcpy(temp, response);
+            sprintf(response, "2000\r\n%s", temp);
+        } else {
+            strcpy(response, "5000\r\n");
+        }
+    } else if (strcmp(command, "BOOK_TICKET") == 0) {
+        // Similar handling
+        char *username = strtok(NULL, "\r\n");
+        char *film_id = strtok(NULL, "\r\n");
+        char *cinema_id = strtok(NULL, "\r\n");
+        char *show_id = strtok(NULL, "\r\n");
+        char *seat_number_str = strtok(NULL, "\r\n");
+        char *seat_list_str = strtok(NULL, "\r\n");
+        char *token = strtok(NULL, "\r\n");
+
+        // Verify token
+        if (!verify_token(token)) {
+            strcpy(response, "4010\r\n"); // Unauthorized
+            return false;
+        }
+
+        int seat_number = atoi(seat_number_str);
+        if (book_ticket_db(username, film_id, cinema_id, show_id, seat_number, seat_list_str, response)) {
+            printf("\n=== Message Sent to Client ===\n%s\n", response);
+        } else {
+            strcpy(response, "5000\r\n");
+        }
     } else if (strcmp(command, "LOGOUT") == 0) {
         strcpy(response, "1030\r\n");
     } else {
