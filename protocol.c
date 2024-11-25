@@ -166,7 +166,7 @@ bool process_client_message(const char *message, char *response) {
 
         int seat_number = atoi(seat_number_str);
         if (book_ticket_db(username, film_id, cinema_id, show_id, seat_number, seat_list_str, response)) {
-            printf("\n=== Message Sent to Client ===\n%s\n", response);
+            // printf("\n=== Message Sent to Client ===\n%s\n", response);
         } else {
             strcpy(response, "5000\r\n");
         }

@@ -106,8 +106,8 @@ void register_user(int sock) {
     // Construct message
     sprintf(message, "REGISTER\r\n%s\r\n%s\r\n%s", name, username, password);
 
-    // Print the message being sent
-    printf("\n=== Message Sent to Server ===\n%s\n", message);
+    // // Print the message being sent
+    // printf("\n=== Message Sent to Server ===\n%s\n", message);
 
     // Send message
     send(sock, message, strlen(message), 0);
@@ -116,8 +116,8 @@ void register_user(int sock) {
     int read_size = recv(sock, server_reply, BUFFER_SIZE, 0);
     server_reply[read_size] = '\0';
 
-    // Print the message received from server
-    printf("\n=== Message Received from Server ===\n%s\n", server_reply);
+    // // Print the message received from server
+    // printf("\n=== Message Received from Server ===\n%s\n", server_reply);
 
     // Process server response
     if (strcmp(server_reply, "1020\r\n") == 0) {
@@ -146,8 +146,8 @@ int login_user(int sock, char *token, char *username_out) {
     // Construct message
     sprintf(message, "LOGIN\r\n%s\r\n%s", username, password);
 
-    // Print the message being sent
-    printf("\n=== Message Sent to Server ===\n%s\n", message);
+    // // Print the message being sent
+    // printf("\n=== Message Sent to Server ===\n%s\n", message);
 
     // Send message
     send(sock, message, strlen(message), 0);
@@ -156,8 +156,8 @@ int login_user(int sock, char *token, char *username_out) {
     int read_size = recv(sock, server_reply, BUFFER_SIZE, 0);
     server_reply[read_size] = '\0';
 
-    // Print the message received from server
-    printf("\n=== Message Received from Server ===\n%s\n", server_reply);
+    // // Print the message received from server
+    // printf("\n=== Message Received from Server ===\n%s\n", server_reply);
 
     // Process server response
     char *code = strtok(server_reply, "\r\n");
@@ -199,8 +199,8 @@ void change_password(int sock, const char *token) {
     // Construct message
     sprintf(message, "CHANGE_PASSWORD\r\n%s\r\n%s\r\n%s\r\n%s", username, old_password, new_password, token);
 
-    // Print the message being sent
-    printf("\n=== Message Sent to Server ===\n%s\n", message);
+    // // Print the message being sent
+    // printf("\n=== Message Sent to Server ===\n%s\n", message);
 
     // Send message
     send(sock, message, strlen(message), 0);
@@ -209,8 +209,8 @@ void change_password(int sock, const char *token) {
     int read_size = recv(sock, server_reply, BUFFER_SIZE, 0);
     server_reply[read_size] = '\0';
 
-    // Print the message received from server
-    printf("\n=== Message Received from Server ===\n%s\n", server_reply);
+    // // Print the message received from server
+    // printf("\n=== Message Received from Server ===\n%s\n", server_reply);
 
     // Process server response
     if (strcmp(server_reply, "1110\r\n") == 0) {
@@ -234,8 +234,8 @@ void search_films_by_title(int sock, const char *token) {
     // Construct message
     sprintf(message, "SEARCH_BY_TITLE\r\n%s\r\n%s", title, token);
 
-    // Print the message being sent
-    printf("\n=== Message Sent to Server ===\n%s\n", message);
+    // // Print the message being sent
+    // printf("\n=== Message Sent to Server ===\n%s\n", message);
 
     // Send message
     send(sock, message, strlen(message), 0);
@@ -244,8 +244,8 @@ void search_films_by_title(int sock, const char *token) {
     int read_size = recv(sock, server_reply, BUFFER_SIZE, 0);
     server_reply[read_size] = '\0';
 
-    // Print the message received from server
-    printf("\n=== Message Received from Server ===\n%s\n", server_reply);
+    // // Print the message received from server
+    // printf("\n=== Message Received from Server ===\n%s\n", server_reply);
 
     // Process server response
     char *code = strtok(server_reply, "\r\n");
@@ -271,16 +271,16 @@ void browse_films(int sock, const char *token) {
     // Step 1: Get categories
     sprintf(message, "SHOW_CATEGORIES\r\n%s", token);
 
-    // Print the message being sent
-    printf("\n=== Message Sent to Server ===\n%s\n", message);
+    // // Print the message being sent
+    // printf("\n=== Message Sent to Server ===\n%s\n", message);
 
     send(sock, message, strlen(message), 0);
 
     int read_size = recv(sock, server_reply, BUFFER_SIZE, 0);
     server_reply[read_size] = '\0';
 
-    // Print the message received from server
-    printf("\n=== Message Received from Server ===\n%s\n", server_reply);
+    // // Print the message received from server
+    // printf("\n=== Message Received from Server ===\n%s\n", server_reply);
 
     char *code = strtok(server_reply, "\r\n");
     if (strcmp(code, "2000") == 0) {
@@ -301,16 +301,16 @@ void browse_films(int sock, const char *token) {
     // Step 2: Get cinemas
     sprintf(message, "SHOW_CINEMA\r\n%s", token);
 
-    // Print the message being sent
-    printf("\n=== Message Sent to Server ===\n%s\n", message);
+    // // Print the message being sent
+    // printf("\n=== Message Sent to Server ===\n%s\n", message);
 
     send(sock, message, strlen(message), 0);
 
     read_size = recv(sock, server_reply, BUFFER_SIZE, 0);
     server_reply[read_size] = '\0';
 
-    // Print the message received from server
-    printf("\n=== Message Received from Server ===\n%s\n", server_reply);
+    // // Print the message received from server
+    // printf("\n=== Message Received from Server ===\n%s\n", server_reply);
 
     code = strtok(server_reply, "\r\n");
     if (strcmp(code, "2000") == 0) {
@@ -340,16 +340,16 @@ void browse_films(int sock, const char *token) {
     // Step 3: Browse films
     sprintf(message, "BROWSE_FILM\r\n%s\r\n%s\r\n%s\r\n%s\r\n%s", category_id, cinema_id, start_time, end_time, token);
 
-    // Print the message being sent
-    printf("\n=== Message Sent to Server ===\n%s\n", message);
+    // // Print the message being sent
+    // printf("\n=== Message Sent to Server ===\n%s\n", message);
 
     send(sock, message, strlen(message), 0);
 
     read_size = recv(sock, server_reply, BUFFER_SIZE, 0);
     server_reply[read_size] = '\0';
 
-    // Print the message received from server
-    printf("\n=== Message Received from Server ===\n%s\n", server_reply);
+    // // Print the message received from server
+    // printf("\n=== Message Received from Server ===\n%s\n", server_reply);
 
     code = strtok(server_reply, "\r\n");
     if (strcmp(code, "2000") == 0) {
@@ -546,16 +546,16 @@ int logout_user(int sock, char *token) {
 
     sprintf(message, "LOGOUT");
 
-    // Print the message being sent
-    printf("\n=== Message Sent to Server ===\n%s\n", message);
+    // // Print the message being sent
+    // printf("\n=== Message Sent to Server ===\n%s\n", message);
 
     send(sock, message, strlen(message), 0);
 
     int read_size = recv(sock, server_reply, BUFFER_SIZE, 0);
     server_reply[read_size] = '\0';
 
-    // Print the message received from server
-    printf("\n=== Message Received from Server ===\n%s\n", server_reply);
+    // // Print the message received from server
+    // printf("\n=== Message Received from Server ===\n%s\n", server_reply);
 
     if (strcmp(server_reply, "1030\r\n") == 0) {
         printf("Logged out successfully.\n");
