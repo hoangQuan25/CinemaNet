@@ -120,6 +120,12 @@ bool search_films_by_title_db(const char *title, char *films) {
         return false;
     }
 
+    int num_rows = mysql_num_rows(result);
+    if (num_rows == 0) {
+        mysql_free_result(result);
+        return false;
+    }
+
     MYSQL_ROW row;
     strcpy(films, "[");
     while ((row = mysql_fetch_row(result))) {
@@ -153,6 +159,13 @@ bool get_categories_db(char *categories) {
         return false;
     }
 
+    int num_rows = mysql_num_rows(result);
+    if (num_rows == 0) {
+        // No shows found
+        mysql_free_result(result);
+        return false; // Indicate no results found
+    }
+
     MYSQL_ROW row;
     strcpy(categories, "[");
     while ((row = mysql_fetch_row(result))) {
@@ -182,6 +195,13 @@ bool get_cinemas_db(char *cinemas) {
     if (result == NULL) {
         fprintf(stderr, "Get Cinemas Error: %s\n", mysql_error(conn));
         return false;
+    }
+
+    int num_rows = mysql_num_rows(result);
+    if (num_rows == 0) {
+        // No shows found
+        mysql_free_result(result);
+        return false; // Indicate no results found
     }
 
     MYSQL_ROW row;
@@ -217,6 +237,13 @@ bool browse_films_db(const char *category_id, const char *cinema_id, const char 
     if (result == NULL) {
         fprintf(stderr, "Browse Films Error: %s\n", mysql_error(conn));
         return false;
+    }
+
+    int num_rows = mysql_num_rows(result);
+    if (num_rows == 0) {
+        // No shows found
+        mysql_free_result(result);
+        return false; // Indicate no results found
     }
 
     MYSQL_ROW row;
@@ -258,6 +285,13 @@ bool get_cinemas_by_film(const char *film_id, char *cinemas) {
         return false;
     }
 
+    int num_rows = mysql_num_rows(result);
+    if (num_rows == 0) {
+        // No shows found
+        mysql_free_result(result);
+        return false; // Indicate no results found
+    }
+
     MYSQL_ROW row;
     strcpy(cinemas, "[");
     while ((row = mysql_fetch_row(result))) {
@@ -291,6 +325,13 @@ bool get_shows(const char *film_id, const char *cinema_id, char *shows) {
     if (result == NULL) {
         fprintf(stderr, "Get Shows Error: %s\n", mysql_error(conn));
         return false;
+    }
+
+    int num_rows = mysql_num_rows(result);
+    if (num_rows == 0) {
+        // No shows found
+        mysql_free_result(result);
+        return false; // Indicate no results found
     }
 
     MYSQL_ROW row;

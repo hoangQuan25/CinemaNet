@@ -85,9 +85,9 @@ INSERT INTO films (film_name, category_id, description, length) VALUES
 
 -- Insert sample cinemas
 INSERT INTO cinemas (cinema_name, seat_quantity) VALUES
-('Cinema One', 25),
-('Cinema Two', 30),
-('Cinema Three', 20);
+('CGV Ba Trieu', 30),
+('CGV Truong Dinh', 40),
+('CGV Trang Tien', 20);
 
 
 -- Insert sample shows
@@ -95,28 +95,28 @@ INSERT INTO cinemas (cinema_name, seat_quantity) VALUES
 
 -- Show for 'The Great Adventure' in 'Cinema One'
 INSERT INTO shows (film_id, cinema_id, date, start_time, end_time, seat_map) VALUES
-(1, 1, CURDATE(), '14:00:00', '16:00:00', REPEAT('0', (SELECT seat_quantity FROM cinemas WHERE id = 1)));
+(1, 1, CURDATE(), '14:00:00', '16:00:00', '00000000005000000000050000000000');
 
 -- Show for 'Laugh Out Loud' in 'Cinema Two'
 INSERT INTO shows (film_id, cinema_id, date, start_date, end_time, seat_map) VALUES
-(2, 2, CURDATE(), '15:00:00', '16:30:00', REPEAT('0', (SELECT seat_quantity FROM cinemas WHERE id = 2)));
+(2, 2, CURDATE(), '15:00:00', '16:30:00', '0000000000500000000005000000000050000000000');
 
 -- Show for 'Tears of the Sun' in 'Cinema Three'
 INSERT INTO shows (film_id, cinema_id, date, start_time, end_time, seat_map) VALUES
-(3, 3, CURDATE(), '16:00:00', '17:50:00', REPEAT('0', (SELECT seat_quantity FROM cinemas WHERE id = 3)));
+(3, 3, CURDATE(), '16:00:00', '17:50:00', '000000000050000000000');
 
 -- Add more shows as needed
 -- Additional shows for 'Space Odyssey' in 'Cinema One' and 'Cinema Two'
 INSERT INTO shows (film_id, cinema_id, date, start_time, end_time, seat_map) VALUES
-(5, 1, CURDATE(), '18:00:00', '20:10:00', REPEAT('0', (SELECT seat_quantity FROM cinemas WHERE id = 1))),
-(5, 2, CURDATE(), '19:00:00', '21:10:00', REPEAT('0', (SELECT seat_quantity FROM cinemas WHERE id = 2)));
+(5, 1, CURDATE(), '18:00:00', '20:10:00', '00000000005000000000050000000000'),
+(5, 2, CURDATE(), '19:00:00', '21:10:00', '0000000000500000000005000000000050000000000');
 
 -- Show for 'Love in Paris' in 'Cinema Three'
 INSERT INTO shows (film_id, cinema_id, date, start_time, end_time, seat_map) VALUES
-(6, 3, CURDATE(), '17:00:00', '18:45:00', REPEAT('0', (SELECT seat_quantity FROM cinemas WHERE id = 3)));
+(6, 3, CURDATE(), '17:00:00', '18:45:00', '000000000050000000000');
 
 -- Show for 'Animated Dreams' in all cinemas
 INSERT INTO shows (film_id, cinema_id, date, start_time, end_time, seat_map) VALUES
-(7, 1, CURDATE(), '12:00:00', '13:35:00', REPEAT('0', (SELECT seat_quantity FROM cinemas WHERE id = 1))),
-(7, 2, CURDATE(), '12:30:00', '14:05:00', REPEAT('0', (SELECT seat_quantity FROM cinemas WHERE id = 2))),
-(7, 3, CURDATE(), '13:00:00', '14:35:00', REPEAT('0', (SELECT seat_quantity FROM cinemas WHERE id = 3)));
+(7, 1, CURDATE(), '12:00:00', '13:35:00', '00000000005000000000050000000000'),
+(7, 2, CURDATE(), '12:30:00', '14:05:00', '0000000000500000000005000000000050000000000'),
+(7, 3, CURDATE(), '13:00:00', '14:35:00', '000000000050000000000');

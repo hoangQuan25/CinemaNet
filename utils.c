@@ -53,7 +53,6 @@ void seat_id_to_label(int seat_id, char *seat_label) {
 
 
 bool verify_token(const char *token) {
-    // Implement your token verification logic here
     // For simplicity, let's assume any non-empty token is valid
     if (token == NULL || strlen(token) == 0) {
         return false;
