@@ -23,5 +23,9 @@ bool get_film_name(const char *film_id, char *film_name);
 bool get_cinema_name(const char *cinema_id, char *cinema_name);
 bool get_show_times(const char *show_id, char *show_date, char *start_time, char *end_time);
 bool book_ticket_db(const char *username, const char *film_id, const char *cinema_id, const char *show_id, int seat_number, const char *seat_list_str, char *response);
+int add_film_db(const char *film_name, const char *category_id, const char *description, int length);
+bool check_film_db(const char *film_name, char *film_id, char *description, char *length_str);
+bool add_show_db(const char *film_id, const char *cinema_id, const char *date,
+                 const char *start_time, const char *end_time);
 
 #endif // DATABASE_H

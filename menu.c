@@ -17,6 +17,7 @@ void main_menu(int sock) {
     char token[BUFFER_SIZE] = {0};
     char username[BUFFER_SIZE] = {0};
     int is_logged_in = 0; // 0: Not logged in, 1: Logged in
+    int user_role = 0;    // 0: Normal user, 1: Admin/Seller
 
     while (1) {
         if (!is_logged_in) {
@@ -34,7 +35,7 @@ void main_menu(int sock) {
                     register_user(sock);
                     break;
                 case 2:
-                    if (login_user(sock, token, username)) {
+                    if (login_user(sock, token, username, &user_role)) {
                         is_logged_in = 1;
                     }
                     break;
@@ -46,38 +47,74 @@ void main_menu(int sock) {
             }
         } else {
             // User is logged in
-            printf("\n===== CinemaNet =====\n");
-            printf("1. Search Films by Title\n");
-            printf("2. Browse Films\n");
-            printf("3. Book ticket\n");
-            printf("4. Change password\n");
-            printf("5. Logout\n");
-            printf("Enter your choice: ");
-            scanf("%d", &choice);
-            getchar(); // Consume newline
+            if (user_role == 0) {
+                // Normal user menu
+                printf("\n===== CinemaNet =====\n");
+                printf("1. Search Films by Title\n");
+                printf("2. Browse Films\n");
+                printf("3. Book ticket\n");
+                printf("4. Change password\n");
+                printf("5. Logout\n");
+                printf("Enter your choice: ");
+                scanf("%d", &choice);
+                getchar(); // Consume newline
 
-            switch (choice) {
-                case 1:
-                    search_films_by_title(sock, token);
-                    break;
-                case 2:
-                    browse_films(sock, token);
-                    break;
-                case 3:
-                    book_ticket(sock, username, token);
-                    break;
-                case 4:
-                    change_password(sock, token);
-                    break;
-                case 5:
-                    if (logout_user(sock, token)) {
-                        is_logged_in = 0;
-                        memset(token, 0, BUFFER_SIZE);
-                        memset(username, 0, BUFFER_SIZE);
-                    }
-                    break;
-                default:
-                    printf("Invalid choice. Please try again.\n");
+                switch (choice) {
+                    case 1:
+                        search_films_by_title(sock, token);
+                        break;
+                    case 2:
+                        browse_films(sock, token);
+                        break;
+                    case 3:
+                        book_ticket(sock, username, token);
+                        break;
+                    case 4:
+                        change_password(sock, token);
+                        break;
+                    case 5:
+                        if (logout_user(sock, token)) {
+                            is_logged_in = 0;
+                            memset(token, 0, BUFFER_SIZE);
+                            memset(username, 0, BUFFER_SIZE);
+                            user_role = 0;
+                        }
+                        break;
+                    default:
+                        printf("Invalid choice. Please try again.\n");
+                }
+            } else if (user_role == 1) {
+                // Admin/Seller menu
+                printf("\n===== CinemaNet (Admin) =====\n");
+                printf("1. Add New Film\n");
+                printf("2. Show Film\n");
+                printf("3. Edit Show\n");
+                printf("4. Logout\n");
+                printf("Enter your choice: ");
+                scanf("%d", &choice);
+                getchar(); // Consume newline
+
+                switch (choice) {
+                    case 1:
+                        add_new_film(sock, token);
+                        break;
+                    case 2:
+                        show_film(sock, token);
+                        break;
+                    case 3:
+                        // edit_show(sock, token);
+                        break;
+                    case 4:
+                        if (logout_user(sock, token)) {
+                            is_logged_in = 0;
+                            memset(token, 0, BUFFER_SIZE);
+                            memset(username, 0, BUFFER_SIZE);
+                            user_role = 0;
+                        }
+                        break;
+                    default:
+                        printf("Invalid choice. Please try again.\n");
+                }
             }
         }
     }
@@ -129,7 +166,7 @@ void register_user(int sock) {
     }
 }
 
-int login_user(int sock, char *token, char *username_out) {
+int login_user(int sock, char *token, char *username_out, int *user_role) {
     char username[BUFFER_SIZE];
     char password[BUFFER_SIZE];
     char message[BUFFER_SIZE];
@@ -167,6 +204,12 @@ int login_user(int sock, char *token, char *username_out) {
         printf("Login successful.\n");
         // After successful login
         strcpy(username_out, username);
+        // Set user role based on code
+        if (strcmp(code, "1010") == 0) {
+            *user_role = 0; // Normal user
+        } else if (strcmp(code, "1011") == 0) {
+            *user_role = 1; // Admin/Seller
+        }
         return 1; // Success
     } else if (strcmp(code, "2011") == 0) {
         printf("Login failed: Invalid credentials.\n");
@@ -602,6 +645,226 @@ void print_ticket(const char *username, const char *film_name, const char *cinem
     printf("Thank you for your purchase!\n");
     printf("============================\n");
 }
+
+
+// seller side
+void add_new_film(int sock, const char *token) {
+    char film_name[BUFFER_SIZE];
+    char category_id[BUFFER_SIZE];
+    char length_str[BUFFER_SIZE];
+    char description[BUFFER_SIZE];
+    char message[BUFFER_SIZE];
+    char server_reply[BUFFER_SIZE];
+    char categories[BUFFER_SIZE];
+
+    // Step 1: Seller inputs film name
+    printf("Enter film name: ");
+    fgets(film_name, BUFFER_SIZE, stdin);
+    trim_newline(film_name);
+
+    // Step 2: Display category list and ask for selection
+    if (get_categories(sock, token, categories)) {
+        printf("Available Categories:\n");
+        display_categories(categories);
+
+        // Ask the seller to select a category
+        printf("Enter category ID: ");
+        fgets(category_id, BUFFER_SIZE, stdin);
+        trim_newline(category_id);
+    } else {
+        printf("An error occurred while fetching categories.\n");
+        return;
+    }
+
+    // Step 3: Input description
+    printf("Enter description: ");
+    fgets(description, BUFFER_SIZE, stdin);
+    trim_newline(description);
+
+    // Step 4: Input length
+    printf("Enter film length (in minutes): ");
+    fgets(length_str, BUFFER_SIZE, stdin);
+    trim_newline(length_str);
+
+    // Step 5: Send data to server
+    sprintf(message, "ADD_FILM\r\n%s\r\n%s\r\n%s\r\n%s\r\n%s", film_name, category_id, description, length_str, token);
+
+    // Send message
+    send(sock, message, strlen(message), 0);
+
+    // Receive server response
+    int read_size = recv(sock, server_reply, BUFFER_SIZE, 0);
+    server_reply[read_size] = '\0';
+
+    // Process server response
+    char *code = strtok(server_reply, "\r\n");
+    if (strcmp(code, "2000") == 0) {
+        printf("Film added successfully.\n");
+    } else if (strcmp(code, "2060") == 0) {
+        printf("Film already exists.\n");
+    } else if (strcmp(code, "4001") == 0) {
+        printf("Unauthorized access.\n");
+    } else if (strcmp(code, "5000") == 0) {
+        printf("Server error occurred.\n");
+    } else {
+        printf("An unexpected error occurred.\n");
+    }
+}
+
+void show_film(int sock, const char *token) {
+    char cinema_id[BUFFER_SIZE];
+    char film_name[BUFFER_SIZE];
+    char film_id[BUFFER_SIZE];
+    char date[BUFFER_SIZE];
+    char start_time[BUFFER_SIZE];
+    char end_time[BUFFER_SIZE];
+    char message[BUFFER_SIZE];
+    char server_reply[BUFFER_SIZE];
+    char cinemas[BUFFER_SIZE];
+    char film_details[BUFFER_SIZE];
+    
+    // Step 1: Display list of cinemas
+    if (get_cinemas(sock, token, cinemas)) {
+        printf("Available Cinemas:\n");
+        display_cinemas(cinemas);
+    } else {
+        printf("An error occurred while fetching cinemas.\n");
+        return;
+    }
+    
+    // Seller selects a cinema
+    printf("Enter Cinema ID: ");
+    fgets(cinema_id, BUFFER_SIZE, stdin);
+    trim_newline(cinema_id);
+
+    // Step 2: Seller inputs film name
+    printf("Enter Film Name to schedule: ");
+    fgets(film_name, BUFFER_SIZE, stdin);
+    trim_newline(film_name);
+    
+    // Construct CHECK_FILM message
+    sprintf(message, "CHECK_FILM\r\n%s\r\n%s", film_name, token);
+    
+    // Send CHECK_FILM request
+    send(sock, message, strlen(message), 0);
+    
+    // Receive server response
+    int read_size = recv(sock, server_reply, BUFFER_SIZE, 0);
+    server_reply[read_size] = '\0';
+    
+    // Process server response
+    char *code = strtok(server_reply, "\r\n");
+    if (strcmp(code, "2000") == 0) {
+        // Film exists, extract film details
+        strcpy(film_id, strtok(NULL, "\r\n"));
+        char *film_name_resp = strtok(NULL, "\r\n");
+        char *description = strtok(NULL, "\r\n");
+        char *length = strtok(NULL, "\r\n");
+        
+        // Display film details to the seller
+        printf("Film Details:\n");
+        printf("Film ID: %s\n", film_id);
+        printf("Film Name: %s\n", film_name_resp);
+        printf("Description: %s\n", description);
+        printf("Length: %s minutes\n", length);
+    } else if (strcmp(code, "2040") == 0) {
+        printf("Film not found.\n");
+        return;
+    } else {
+        printf("An error occurred while checking film.\n");
+        return;
+    }
+
+        // Step 3: Seller inputs date and time
+    printf("Enter Date (yyyy-mm-dd): ");
+    fgets(date, BUFFER_SIZE, stdin);
+    trim_newline(date);
+    
+    printf("Enter Start Time (hh:mm): ");
+    fgets(start_time, BUFFER_SIZE, stdin);
+    trim_newline(start_time);
+    
+    printf("Enter End Time (hh:mm): ");
+    fgets(end_time, BUFFER_SIZE, stdin);
+    trim_newline(end_time);
+
+    // Step 4: Send SHOW_FILM request to schedule the film
+    sprintf(message, "SHOW_FILM\r\n%s\r\n%s\r\n%s\r\n%s\r\n%s\r\n%s",
+            film_id, cinema_id, date, start_time, end_time, token);
+    
+    // Send SHOW_FILM request
+    send(sock, message, strlen(message), 0);
+    
+    // Receive server response
+    read_size = recv(sock, server_reply, BUFFER_SIZE, 0);
+    server_reply[read_size] = '\0';
+    
+    // Process server response
+    code = strtok(server_reply, "\r\n");
+    if (strcmp(code, "2000") == 0) {
+        printf("Film scheduled successfully.\n");
+    } else if (strcmp(code, "5000") == 0) {
+        printf("An error occurred while scheduling the film.\n");
+    } else {
+        printf("An unexpected error occurred.\n");
+    }
+}
+
+
+
+// helper function to fetch categories
+bool get_categories(int sock, const char *token, char *categories) {
+    char message[BUFFER_SIZE];
+    char server_reply[BUFFER_SIZE];
+
+    // Construct message
+    sprintf(message, "SHOW_CATEGORIES\r\n%s", token);
+
+    // Send message
+    send(sock, message, strlen(message), 0);
+
+    // Receive server response
+    int read_size = recv(sock, server_reply, BUFFER_SIZE, 0);
+    server_reply[read_size] = '\0';
+
+    // Process server response
+    char *code = strtok(server_reply, "\r\n");
+    if (strcmp(code, "2000") == 0) {
+        char *data = strtok(NULL, "\r\n");
+        strcpy(categories, data);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+// helper function to fetch cinemas
+bool get_cinemas(int sock, const char *token, char *cinemas) {
+    char message[BUFFER_SIZE];
+    char server_reply[BUFFER_SIZE];
+
+    // Construct message
+    sprintf(message, "SHOW_CINEMA\r\n%s", token);
+
+    // Send message
+    send(sock, message, strlen(message), 0);
+
+    // Receive server response
+    int read_size = recv(sock, server_reply, BUFFER_SIZE, 0);
+    server_reply[read_size] = '\0';
+
+    // Process server response
+    char *code = strtok(server_reply, "\r\n");
+    if (strcmp(code, "2000") == 0) {
+        char *data = strtok(NULL, "\r\n");
+        strcpy(cinemas, data);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+
 
 
 
