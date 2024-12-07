@@ -7,5 +7,6 @@ void display_categories(const char *data);
 void display_cinemas(const char *data);
 void display_shows(const char *data);
 void display_seat_map(const char *seat_map_str);
+void display_films_with_length(const char *data);
 
 #endif // DISPLAY.H

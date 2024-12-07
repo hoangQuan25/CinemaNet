@@ -265,12 +265,14 @@ bool process_client_message(const char *message, char *response)
             strcpy(response, "5000\r\n");
         }
     }
-    else if (strcmp(command, "CHECK_FILM") == 0) {
+    else if (strcmp(command, "CHECK_FILM") == 0)
+    {
         char *film_name = strtok(NULL, "\r\n");
         char *token = strtok(NULL, "\r\n");
 
         // Verify token and seller role
-        if (!verify_token(token)) {
+        if (!verify_token(token))
+        {
             strcpy(response, "4001\r\n"); // Unauthorized
             free(msg_copy);
             return false;
@@ -280,13 +282,17 @@ bool process_client_message(const char *message, char *response)
         char description[BUFFER_SIZE];
         char length_str[BUFFER_SIZE];
 
-        if (check_film_db(film_name, film_id, description, length_str)) {
+        if (check_film_db(film_name, film_id, description, length_str))
+        {
             sprintf(response, "2000\r\n%s\r\n%s\r\n%s\r\n%s", film_id, film_name, description, length_str);
-        } else {
+        }
+        else
+        {
             strcpy(response, "2040\r\n"); // Film not found
         }
     }
-    else if (strcmp(command, "SHOW_FILM") == 0) {
+    else if (strcmp(command, "SHOW_FILM") == 0)
+    {
         char *film_id = strtok(NULL, "\r\n");
         char *cinema_id = strtok(NULL, "\r\n");
         char *date = strtok(NULL, "\r\n");
@@ -295,18 +301,146 @@ bool process_client_message(const char *message, char *response)
         char *token = strtok(NULL, "\r\n");
 
         // Verify token and seller role
-        if (!verify_token(token)) {
+        if (!verify_token(token))
+        {
             strcpy(response, "4001\r\n"); // Unauthorized
             free(msg_copy);
             return false;
         }
 
-        if (add_show_db(film_id, cinema_id, date, start_time, end_time)) {
+        int result = add_show_db(film_id, cinema_id, date, start_time, end_time);
+        if (result == 1)
+        {
             strcpy(response, "2000\r\n");
-        } else {
+        }
+        else
+        {
+            strcpy(response, "2070\r\n"); // Add show failed
+        }
+    }
+    else if (strcmp(command, "SHOW_FILM_BY_CINEMA") == 0)
+    {
+        char *cinema_id = strtok(NULL, "\r\n");
+        char *token = strtok(NULL, "\r\n");
+
+        // Verify token and seller role
+        if (!verify_token(token))
+        {
+            strcpy(response, "4001\r\n"); // Unauthorized
+            free(msg_copy);
+            return false;
+        }
+
+        char films[BUFFER_SIZE];
+        if (get_films_by_cinema_db(cinema_id, films))
+        {
+            sprintf(response, "2000\r\n%s\r\n", films);
+        }
+        else
+        {
+            strcpy(response, "2080\r\n");
+        }
+    }
+    else if (strcmp(command, "SHOW_SHOWS") == 0)
+    {
+        char *film_id = strtok(NULL, "\r\n");
+        char *cinema_id = strtok(NULL, "\r\n");
+        char *token = strtok(NULL, "\r\n");
+
+        // Verify token and seller role
+        if (!verify_token(token))
+        {
+            strcpy(response, "4001\r\n"); // Unauthorized
+            free(msg_copy);
+            return false;
+        }
+
+        char shows[BUFFER_SIZE];
+        if (get_shows_db(film_id, cinema_id, shows))
+        {
+            sprintf(response, "2000\r\n%s\r\n", shows);
+        }
+        else
+        {
+            strcpy(response, "2081\r\n");
+        }
+    }
+    else if (strcmp(command, "ADD_SHOW") == 0)
+    {
+        char *cinema_id = strtok(NULL, "\r\n");
+        char *film_id = strtok(NULL, "\r\n");
+        char *date = strtok(NULL, "\r\n");
+        char *start_time = strtok(NULL, "\r\n");
+        char *end_time = strtok(NULL, "\r\n");
+        char *token = strtok(NULL, "\r\n");
+
+        // Verify token and seller role
+        if (!verify_token(token))
+        {
+            strcpy(response, "4001\r\n");
+            free(msg_copy);
+            return false;
+        }
+
+        int result = add_show_db(film_id, cinema_id, date, start_time, end_time);
+        if (result == 1)
+        {
+            strcpy(response, "2000\r\n");
+        }
+        else
+        {
+            strcpy(response, "2070\r\n");
+        }
+    }
+    else if (strcmp(command, "DELETE_SHOW") == 0)
+    {
+        char *show_id = strtok(NULL, "\r\n");
+        char *token = strtok(NULL, "\r\n");
+
+        // Verify token and seller role
+        if (!verify_token(token))
+        {
+            strcpy(response, "4001\r\n");
+            free(msg_copy);
+            return false;
+        }
+
+        if (delete_show_db(show_id))
+        {
+            strcpy(response, "2000\r\n");
+        }
+        else
+        {
             strcpy(response, "5000\r\n");
         }
     }
+    else if (strcmp(command, "EDIT_SHOW") == 0)
+    {
+        char *show_id = strtok(NULL, "\r\n");
+        char *date = strtok(NULL, "\r\n");
+        char *start_time = strtok(NULL, "\r\n");
+        char *end_time = strtok(NULL, "\r\n");
+        char *token = strtok(NULL, "\r\n");
+
+        // Verify token and seller role
+        if (!verify_token(token))
+        {
+            strcpy(response, "4001\r\n");
+            free(msg_copy);
+            return false;
+        }
+
+        int result = edit_show_db(show_id, date, start_time, end_time);
+        if (result == 1)
+        {
+            strcpy(response, "2000\r\n");
+        }
+        else
+        {
+            strcpy(response, "2070\r\n");
+        }
+    }
+
     else if (strcmp(command, "LOGOUT") == 0)
     {
         strcpy(response, "1030\r\n");

@@ -267,6 +267,92 @@ void display_seat_map(const char *seat_map_str) {
     printf("\n");
 }
 
+// display_films_with_length.c
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#include "utils.h"
+
+#define BUFFER_SIZE 1024
+
+void display_films_with_length(const char *data) {
+    char data_copy[BUFFER_SIZE];
+    snprintf(data_copy, BUFFER_SIZE, "%s", data); // Safe copy
+    char *start = strchr(data_copy, '[');
+    char *end = strrchr(data_copy, ']');
+
+    if (start && end) {
+        *end = '\0'; // Null-terminate after ']'
+        start++;      // Move past '['
+    } else {
+        start = data_copy; // If brackets are missing
+    }
+
+    int count = 1;
+    char *film_entry = start;
+
+    while (film_entry && *film_entry != '\0') {
+        // Find the next occurrence of "}, "
+        char *next = strstr(film_entry, "}, ");
+        if (next != NULL) {
+            *next = '\0'; // Null-terminate current film entry
+            next += 3;     // Move past "}, "
+        } else {
+            // Check for ending '}'
+            char *end_brace = strchr(film_entry, '}');
+            if (end_brace != NULL) {
+                *end_brace = '\0';
+                next = NULL;
+            } else {
+                // No more entries
+                next = NULL;
+            }
+        }
+
+        // Remove leading '{' if present
+        if (film_entry[0] == '{') {
+            film_entry++;
+        }
+
+        // Parse the film_entry
+        // Expected format: "film_id, film_name, length"
+
+        char *token = strtok(film_entry, ",");
+        if (token == NULL) {
+            break; // Malformed entry
+        }
+        char *id_str = token;
+        trim_whitespace(id_str);
+
+        token = strtok(NULL, ",");
+        if (token == NULL) {
+            break; // Malformed entry
+        }
+        char *name = token;
+        trim_whitespace(name);
+
+        token = strtok(NULL, ",");
+        if (token == NULL) {
+            break; // Malformed entry
+        }
+        char *length = token;
+        trim_whitespace(length);
+
+        // Display the film
+        printf("%d. [ID: %s] %s\n", count, id_str, name);
+        printf("   Length: %s minutes\n\n", length);
+
+        // Move to the next film entry
+        film_entry = next;
+        count++;
+    }
+
+    if (count == 1) {
+        printf("No films to display.\n");
+    }
+}
+
+
 
 
 
