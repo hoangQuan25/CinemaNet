@@ -102,7 +102,7 @@ void main_menu(int sock) {
                         show_film(sock, token);
                         break;
                     case 3:
-                        // edit_show(sock, token);
+                        modify_show(sock, token);
                         break;
                     case 4:
                         if (logout_user(sock, token)) {
@@ -803,12 +803,91 @@ void show_film(int sock, const char *token) {
     code = strtok(server_reply, "\r\n");
     if (strcmp(code, "2000") == 0) {
         printf("Film scheduled successfully.\n");
+    } else if (strcmp(code, "2070") == 0) {
+        printf("Error: Failed to schedule the film. Please ensure that:\n");
+        printf("- The show date is today or in the future.\n");
+        printf("- The end time is after the start time.\n");
+        printf("- The show duration is sufficient for the film length.\n");
+        printf("- The date and time formats are correct.\n");
     } else if (strcmp(code, "5000") == 0) {
         printf("An error occurred while scheduling the film.\n");
     } else {
         printf("An unexpected error occurred.\n");
     }
 }
+
+
+void modify_show(int sock, const char *token) {
+    char cinema_id[BUFFER_SIZE];
+    char film_id[BUFFER_SIZE];
+    char shows[BUFFER_SIZE];
+    char films[BUFFER_SIZE];
+    char choice_str[BUFFER_SIZE];
+    char cinemas[BUFFER_SIZE];
+    int choice;
+
+    // Step 1: Display list of cinemas
+    if (get_cinemas(sock, token, cinemas)) {
+        printf("Available Cinemas:\n");
+        display_cinemas(cinemas);
+    } else {
+        printf("An error occurred while fetching cinemas.\n");
+        return;
+    }
+
+    // Seller selects a cinema
+    printf("Enter Cinema ID: ");
+    fgets(cinema_id, BUFFER_SIZE, stdin);
+    trim_newline(cinema_id);
+
+    // Step 2: Get films showing in the selected cinema
+    if (get_films_by_cinema(sock, cinema_id, token, films)) {
+        printf("Films showing in this cinema:\n");
+        display_films_with_length(films);
+    } else {
+        printf("No films are currently showing in this cinema.\n");
+        return;
+    }
+
+    // Seller selects a film
+    printf("Enter Film ID: ");
+    fgets(film_id, BUFFER_SIZE, stdin);
+    trim_newline(film_id);
+
+    // Step 3: Get shows for the selected film and cinema
+    if (get_shows(sock, film_id, cinema_id, token, shows)) {
+        printf("Shows for this film in the selected cinema:\n");
+        display_shows(shows);
+    } else {
+        printf("No shows are currently scheduled for this film in this cinema.\n");
+        return;
+    }
+
+    // Step 4: Display options
+    printf("Choose an option:\n");
+    printf("1. Add More Show\n");
+    printf("2. Delete Show\n");
+    printf("3. Edit Show\n");
+    printf("Enter your choice: ");
+    fgets(choice_str, BUFFER_SIZE, stdin);
+    choice = atoi(choice_str);
+
+    switch (choice) {
+        case 1:
+            add_more_show(sock, cinema_id, film_id, token);
+            break;
+        case 2:
+            delete_show(sock, token);
+            break;
+        case 3:
+            edit_show(sock, token);
+            break;
+        default:
+            printf("Invalid choice.\n");
+            break;
+    }
+}
+
 
 
 
@@ -863,6 +942,183 @@ bool get_cinemas(int sock, const char *token, char *cinemas) {
         return false;
     }
 }
+
+// helper function to fetch films that cinema is showing
+bool get_films_by_cinema(int sock, const char *cinema_id, const char *token, char *films) {
+    char message[BUFFER_SIZE];
+    char server_reply[BUFFER_SIZE];
+
+    snprintf(message, BUFFER_SIZE, "SHOW_FILM_BY_CINEMA\r\n%s\r\n%s", cinema_id, token);
+
+    send(sock, message, strlen(message), 0);
+
+    int read_size = recv(sock, server_reply, BUFFER_SIZE - 1, 0);
+    if (read_size <= 0) {
+        printf("Server disconnected or error receiving data.\n");
+        return false;
+    }
+    server_reply[read_size] = '\0';
+
+    char *code = strtok(server_reply, "\r\n");
+    if (strcmp(code, "2000") == 0) {
+        char *data = strtok(NULL, "\r\n");
+        strcpy(films, data);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool get_shows(int sock, const char *film_id, const char *cinema_id, const char *token, char *shows) {
+    char message[BUFFER_SIZE];
+    char server_reply[BUFFER_SIZE];
+
+    snprintf(message, BUFFER_SIZE, "SHOW_SHOWS\r\n%s\r\n%s\r\n%s", film_id, cinema_id, token);
+
+    send(sock, message, strlen(message), 0);
+
+    int read_size = recv(sock, server_reply, BUFFER_SIZE - 1, 0);
+    if (read_size <= 0) {
+        printf("Server disconnected or error receiving data.\n");
+        return false;
+    }
+    server_reply[read_size] = '\0';
+
+    char *code = strtok(server_reply, "\r\n");
+    if (strcmp(code, "2000") == 0) {
+        char *data = strtok(NULL, "\r\n");
+        strcpy(shows, data);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+
+void add_more_show(int sock, const char *cinema_id, const char *film_id, const char *token) {
+    char date[BUFFER_SIZE];
+    char start_time[BUFFER_SIZE];
+    char end_time[BUFFER_SIZE];
+    char message[BUFFER_SIZE];
+    char server_reply[BUFFER_SIZE];
+
+    // Input date and time
+    printf("Enter Date (yyyy-mm-dd): ");
+    fgets(date, BUFFER_SIZE, stdin);
+    trim_newline(date);
+
+    printf("Enter Start Time (hh:mm): ");
+    fgets(start_time, BUFFER_SIZE, stdin);
+    trim_newline(start_time);
+
+    printf("Enter End Time (hh:mm): ");
+    fgets(end_time, BUFFER_SIZE, stdin);
+    trim_newline(end_time);
+
+    // Construct message
+    snprintf(message, BUFFER_SIZE, "ADD_SHOW\r\n%s\r\n%s\r\n%s\r\n%s\r\n%s\r\n%s",
+             cinema_id, film_id, date, start_time, end_time, token);
+
+    send(sock, message, strlen(message), 0);
+
+    int read_size = recv(sock, server_reply, BUFFER_SIZE - 1, 0);
+    if (read_size <= 0) {
+        printf("Server disconnected or error receiving data.\n");
+        return;
+    }
+    server_reply[read_size] = '\0';
+
+    char *code = strtok(server_reply, "\r\n");
+    if (strcmp(code, "2000") == 0) {
+        printf("Show added successfully.\n");
+    } else if (strcmp(code, "2070") == 0) {
+        printf("Error: Failed to add the show. Please check your input.\n");
+    } else {
+        printf("An error occurred.\n");
+    }
+}
+
+
+void delete_show(int sock, const char *token) {
+    char show_id[BUFFER_SIZE];
+    char message[BUFFER_SIZE];
+    char server_reply[BUFFER_SIZE];
+
+    // Input show ID
+    printf("Enter Show ID to delete: ");
+    fgets(show_id, BUFFER_SIZE, stdin);
+    trim_newline(show_id);
+
+    // Construct message
+    snprintf(message, BUFFER_SIZE, "DELETE_SHOW\r\n%s\r\n%s", show_id, token);
+
+    send(sock, message, strlen(message), 0);
+
+    int read_size = recv(sock, server_reply, BUFFER_SIZE - 1, 0);
+    if (read_size <= 0) {
+        printf("Server disconnected or error receiving data.\n");
+        return;
+    }
+    server_reply[read_size] = '\0';
+
+    char *code = strtok(server_reply, "\r\n");
+    if (strcmp(code, "2000") == 0) {
+        printf("Show deleted successfully.\n");
+    } else {
+        printf("An error occurred.\n");
+    }
+}
+
+
+void edit_show(int sock, const char *token) {
+    char show_id[BUFFER_SIZE];
+    char date[BUFFER_SIZE];
+    char start_time[BUFFER_SIZE];
+    char end_time[BUFFER_SIZE];
+    char message[BUFFER_SIZE];
+    char server_reply[BUFFER_SIZE];
+
+    // Input show ID
+    printf("Enter Show ID to edit: ");
+    fgets(show_id, BUFFER_SIZE, stdin);
+    trim_newline(show_id);
+
+    // Input new date and time
+    printf("Enter New Date (yyyy-mm-dd): ");
+    fgets(date, BUFFER_SIZE, stdin);
+    trim_newline(date);
+
+    printf("Enter New Start Time (hh:mm): ");
+    fgets(start_time, BUFFER_SIZE, stdin);
+    trim_newline(start_time);
+
+    printf("Enter New End Time (hh:mm): ");
+    fgets(end_time, BUFFER_SIZE, stdin);
+    trim_newline(end_time);
+
+    // Construct message
+    snprintf(message, BUFFER_SIZE, "EDIT_SHOW\r\n%s\r\n%s\r\n%s\r\n%s\r\n%s",
+             show_id, date, start_time, end_time, token);
+
+    send(sock, message, strlen(message), 0);
+
+    int read_size = recv(sock, server_reply, BUFFER_SIZE - 1, 0);
+    if (read_size <= 0) {
+        printf("Server disconnected or error receiving data.\n");
+        return;
+    }
+    server_reply[read_size] = '\0';
+
+    char *code = strtok(server_reply, "\r\n");
+    if (strcmp(code, "2000") == 0) {
+        printf("Show edited successfully.\n");
+    } else if (strcmp(code, "2070") == 0) {
+        printf("Error: Failed to edit the show. Please check your input.\n");
+    } else {
+        printf("An error occurred.\n");
+    }
+}
+
 
 
 
