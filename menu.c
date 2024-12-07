@@ -540,6 +540,7 @@ void book_ticket(int sock, const char *username, const char *token) {
                     char *code = strtok(server_reply, "\r\n");
                     if (strcmp(code, "2000") == 0) {
                         // Extract information
+                        char *ticket_id_str = strtok(NULL, "\r\n");
                         char *username_resp = strtok(NULL, "\r\n");
                         char *film_name = strtok(NULL, "\r\n");
                         char *cinema_name = strtok(NULL, "\r\n");
@@ -547,10 +548,23 @@ void book_ticket(int sock, const char *username, const char *token) {
                         char *seat_number_str = strtok(NULL, "\r\n");
                         char *seat_list_resp = strtok(NULL, "\r\n"); // [seat_id1, seat_id2,...]
 
+                         if (ticket_id_str == NULL || username_resp == NULL || film_name == NULL ||
+                            cinema_name == NULL || show_info == NULL || seat_number_str == NULL ||
+                            seat_list_resp == NULL) {
+                            printf("Malformed response from server.\n");
+                            return;
+                        }
+
+                           unsigned long ticket_id = strtoul(ticket_id_str, NULL, 10);
+                        if (ticket_id == 0) {
+                            printf("Failed to retrieve ticket ID.\n");
+                            return;
+                        }
+
                         int seat_number = atoi(seat_number_str);
 
                         // Print ticket
-                        print_ticket(username_resp, film_name, cinema_name, show_info, seat_number, seat_list_resp);
+                        print_ticket(ticket_id, username_resp, film_name, cinema_name, show_info, seat_number, seat_list_resp);
                     } else {
                         printf("An error occurred during booking.\n");
                     }
@@ -609,19 +623,43 @@ int logout_user(int sock, char *token) {
     }
 }
 
-void print_ticket(const char *username, const char *film_name, const char *cinema_name,
-                  const char *show_info, int seat_number, const char *seat_list) {
-    // Parse show_info to extract date, start_time, end_time
+void print_ticket(unsigned long ticket_id, const char *username, const char *film_name,
+                 const char *cinema_name, const char *show_info, int seat_number, const char *seat_list) {
+    // Make a copy of show_info to manipulate
     char show_info_copy[BUFFER_SIZE];
-    strcpy(show_info_copy, show_info);
-    char *date = strtok(show_info_copy, ",[]");
-    char *start_time = strtok(NULL, ", ");
-    char *end_time = strtok(NULL, ", ");
+    strncpy(show_info_copy, show_info, BUFFER_SIZE - 1);
+    show_info_copy[BUFFER_SIZE - 1] = '\0'; // Ensure null-termination
+
+    // Remove the leading '[' and trailing ']' if present
+    if (show_info_copy[0] == '[') {
+        memmove(show_info_copy, show_info_copy + 1, strlen(show_info_copy));
+    }
+    size_t len = strlen(show_info_copy);
+    if (len > 0 && show_info_copy[len - 1] == ']') {
+        show_info_copy[len - 1] = '\0';
+    }
+
+    // Now split the show_info_copy by ','
+    char *date = strtok(show_info_copy, ",");
+    char *start_time = strtok(NULL, ",");
+    char *end_time = strtok(NULL, ",");
+
+    // Trim leading and trailing spaces from each token
+    if (date) {
+        while (*date == ' ') date++; // Trim leading spaces
+    }
+    if (start_time) {
+        while (*start_time == ' ') start_time++;
+    }
+    if (end_time) {
+        while (*end_time == ' ') end_time++;
+    }
 
     // Convert seat IDs to labels
     char seat_list_labels[BUFFER_SIZE] = "";
     char seat_list_copy[BUFFER_SIZE];
-    strcpy(seat_list_copy, seat_list);
+    strncpy(seat_list_copy, seat_list, BUFFER_SIZE - 1);
+    seat_list_copy[BUFFER_SIZE - 1] = '\0'; // Ensure null-termination
 
     char *seat_id_str = strtok(seat_list_copy, ",[]");
     while (seat_id_str != NULL) {
@@ -636,6 +674,7 @@ void print_ticket(const char *username, const char *film_name, const char *cinem
     }
 
     printf("\n===== CINEMANET TICKET =====\n");
+    printf("Ticket ID: %lu\n", ticket_id);
     printf("Username: %s\n", username);
     printf("Film: %s\n", film_name);
     printf("Cinema: %s\n", cinema_name);
@@ -643,9 +682,8 @@ void print_ticket(const char *username, const char *film_name, const char *cinem
     printf("Number of Seats: %d\n", seat_number);
     printf("Seats: %s\n", seat_list_labels);
     printf("Thank you for your purchase!\n");
-    printf("============================\n");
+    printf("============================\n\n");
 }
-
 
 // seller side
 void add_new_film(int sock, const char *token) {
