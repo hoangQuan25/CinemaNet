@@ -435,12 +435,27 @@ bool get_seat_map(const char *show_id, char *seat_map_str)
     return true;
 }
 
-bool book_ticket_db(const char *username, const char *film_id, const char *cinema_id, const char *show_id, int seat_number, const char *seat_list_str, char *response)
+/**
+ * @brief Books a ticket by updating the database and returns the booking details.
+ * 
+ * @param username Username of the user booking the ticket
+ * @param film_id ID of the selected film
+ * @param cinema_id ID of the selected cinema
+ * @param show_id ID of the selected show
+ * @param seat_number Number of seats to book
+ * @param seat_list_str List of seat IDs in string format (e.g., "[1,2,3]")
+ * @param response Buffer to store the server response
+ * @return true Booking successful
+ * @return false Booking failed
+ */
+bool book_ticket_db(const char *username, const char *film_id, const char *cinema_id,
+                   const char *show_id, int seat_number, const char *seat_list_str, char *response)
 {
     MYSQL *conn_local = mysql_init(NULL);
     if (conn_local == NULL)
     {
         fprintf(stderr, "mysql_init() failed\n");
+        strcpy(response, "5000\r\n"); // Internal Server Error
         return false;
     }
 
@@ -449,6 +464,7 @@ bool book_ticket_db(const char *username, const char *film_id, const char *cinem
     {
         fprintf(stderr, "mysql_real_connect() failed\n");
         mysql_close(conn_local);
+        strcpy(response, "5000\r\n"); // Internal Server Error
         return false;
     }
 
@@ -457,18 +473,20 @@ bool book_ticket_db(const char *username, const char *film_id, const char *cinem
     {
         fprintf(stderr, "START TRANSACTION Error: %s\n", mysql_error(conn_local));
         mysql_close(conn_local);
+        strcpy(response, "5000\r\n"); // Internal Server Error
         return false;
     }
 
     // Lock the row for the specific show
     char lock_query[BUFFER_SIZE];
-    snprintf(lock_query, BUFFER_SIZE, "SELECT seat_map FROM shows WHERE id = %s FOR UPDATE", show_id);
+    snprintf(lock_query, BUFFER_SIZE, "SELECT seat_map FROM shows WHERE id = '%s' FOR UPDATE", show_id);
 
     if (mysql_query(conn_local, lock_query))
     {
         fprintf(stderr, "Lock Error: %s\n", mysql_error(conn_local));
         mysql_query(conn_local, "ROLLBACK");
         mysql_close(conn_local);
+        strcpy(response, "5000\r\n"); // Internal Server Error
         return false;
     }
 
@@ -478,6 +496,7 @@ bool book_ticket_db(const char *username, const char *film_id, const char *cinem
         fprintf(stderr, "Lock Error: %s\n", mysql_error(conn_local));
         mysql_query(conn_local, "ROLLBACK");
         mysql_close(conn_local);
+        strcpy(response, "5000\r\n"); // Internal Server Error
         return false;
     }
 
@@ -485,24 +504,30 @@ bool book_ticket_db(const char *username, const char *film_id, const char *cinem
     if (row == NULL)
     {
         mysql_free_result(result);
+        fprintf(stderr, "Show ID not found.\n");
         mysql_query(conn_local, "ROLLBACK");
         mysql_close(conn_local);
+        strcpy(response, "5000\r\n"); // Internal Server Error
         return false;
     }
 
     char seat_map[BUFFER_SIZE];
-    strcpy(seat_map, row[0]); // Current seat map
+    strncpy(seat_map, row[0], BUFFER_SIZE - 1);
+    seat_map[BUFFER_SIZE - 1] = '\0'; // Ensure null-termination
 
     mysql_free_result(result);
-    int seats_per_row = 10;
+
+    int seats_per_row = 10; // Adjust as per your seat configuration
 
     // Process seat_list_str to get seat IDs
     char seat_list_copy[BUFFER_SIZE];
-    strcpy(seat_list_copy, seat_list_str);
-    char *seat_id_str = strtok(seat_list_copy, ",[]");
-    int seat_ids[seat_number];
+    strncpy(seat_list_copy, seat_list_str, BUFFER_SIZE - 1);
+    seat_list_copy[BUFFER_SIZE - 1] = '\0'; // Ensure null-termination
+
+    int seat_ids[100]; // Assuming a maximum of 100 seats per booking
     int index = 0;
 
+    char *seat_id_str = strtok(seat_list_copy, ",[]");
     while (seat_id_str != NULL && index < seat_number)
     {
         int seat_id = atoi(seat_id_str);
@@ -513,7 +538,9 @@ bool book_ticket_db(const char *username, const char *film_id, const char *cinem
     if (index != seat_number)
     {
         fprintf(stderr, "Seat number mismatch\n");
-        mysql_query(conn, "ROLLBACK");
+        mysql_query(conn_local, "ROLLBACK");
+        mysql_close(conn_local);
+        strcpy(response, "5000\r\n"); // Internal Server Error
         return false;
     }
 
@@ -523,22 +550,37 @@ bool book_ticket_db(const char *username, const char *film_id, const char *cinem
         int seat_id = seat_ids[i];
         int seat_index = seat_id_to_seat_map_index(seat_id, seats_per_row);
 
+        if (seat_index < 0 || seat_index >= strlen(seat_map))
+        {
+            fprintf(stderr, "Invalid seat ID: %d\n", seat_id);
+            mysql_query(conn_local, "ROLLBACK");
+            mysql_close(conn_local);
+            strcpy(response, "5000\r\n"); // Internal Server Error
+            return false;
+        }
+
         if (seat_map[seat_index] == '1')
         {
             fprintf(stderr, "Seat %d is already booked\n", seat_id);
-            mysql_query(conn, "ROLLBACK");
+            mysql_query(conn_local, "ROLLBACK");
+            mysql_close(conn_local);
+            strcpy(response, "5000\r\n"); // Internal Server Error
             return false;
         }
         else if (seat_map[seat_index] == '5')
         {
             fprintf(stderr, "Seat %d corresponds to a row separator\n", seat_id);
-            mysql_query(conn, "ROLLBACK");
+            mysql_query(conn_local, "ROLLBACK");
+            mysql_close(conn_local);
+            strcpy(response, "5000\r\n"); // Internal Server Error
             return false;
         }
         else if (seat_map[seat_index] != '0')
         {
             fprintf(stderr, "Invalid seat status at index %d\n", seat_index);
-            mysql_query(conn, "ROLLBACK");
+            mysql_query(conn_local, "ROLLBACK");
+            mysql_close(conn_local);
+            strcpy(response, "5000\r\n"); // Internal Server Error
             return false;
         }
 
@@ -549,7 +591,7 @@ bool book_ticket_db(const char *username, const char *film_id, const char *cinem
     // Update the seat map in the database
     char update_query[BUFFER_SIZE];
     snprintf(update_query, BUFFER_SIZE,
-             "UPDATE shows SET seat_map = '%s' WHERE id = %s",
+             "UPDATE shows SET seat_map = '%s' WHERE id = '%s'",
              seat_map, show_id);
 
     if (mysql_query(conn_local, update_query))
@@ -557,6 +599,7 @@ bool book_ticket_db(const char *username, const char *film_id, const char *cinem
         fprintf(stderr, "Update Seat Map Error: %s\n", mysql_error(conn_local));
         mysql_query(conn_local, "ROLLBACK");
         mysql_close(conn_local);
+        strcpy(response, "5000\r\n"); // Internal Server Error
         return false;
     }
 
@@ -564,7 +607,7 @@ bool book_ticket_db(const char *username, const char *film_id, const char *cinem
     char insert_query[BUFFER_SIZE];
     snprintf(insert_query, BUFFER_SIZE,
              "INSERT INTO tickets (user_id, film_id, cinema_id, show_id, seat_number, seat_list) "
-             "VALUES ((SELECT id FROM users WHERE username = '%s'), %s, %s, %s, %d, '%s')",
+             "VALUES ((SELECT id FROM users WHERE username = '%s'), '%s', '%s', '%s', %d, '%s')",
              username, film_id, cinema_id, show_id, seat_number, seat_list_str);
 
     if (mysql_query(conn_local, insert_query))
@@ -572,6 +615,18 @@ bool book_ticket_db(const char *username, const char *film_id, const char *cinem
         fprintf(stderr, "Insert Ticket Error: %s\n", mysql_error(conn_local));
         mysql_query(conn_local, "ROLLBACK");
         mysql_close(conn_local);
+        strcpy(response, "5000\r\n"); // Internal Server Error
+        return false;
+    }
+
+    // Retrieve the newly inserted ticket_id
+    unsigned long ticket_id = mysql_insert_id(conn_local);
+    if (ticket_id == 0)
+    {
+        fprintf(stderr, "Failed to retrieve ticket ID.\n");
+        mysql_query(conn_local, "ROLLBACK");
+        mysql_close(conn_local);
+        strcpy(response, "5000\r\n"); // Internal Server Error
         return false;
     }
 
@@ -580,7 +635,9 @@ bool book_ticket_db(const char *username, const char *film_id, const char *cinem
     char film_name[BUFFER_SIZE];
     if (!get_film_name(film_id, film_name))
     {
-        mysql_query(conn, "ROLLBACK");
+        mysql_query(conn_local, "ROLLBACK");
+        mysql_close(conn_local);
+        strcpy(response, "5000\r\n"); // Internal Server Error
         return false;
     }
 
@@ -588,7 +645,9 @@ bool book_ticket_db(const char *username, const char *film_id, const char *cinem
     char cinema_name[BUFFER_SIZE];
     if (!get_cinema_name(cinema_id, cinema_name))
     {
-        mysql_query(conn, "ROLLBACK");
+        mysql_query(conn_local, "ROLLBACK");
+        mysql_close(conn_local);
+        strcpy(response, "5000\r\n"); // Internal Server Error
         return false;
     }
 
@@ -598,7 +657,9 @@ bool book_ticket_db(const char *username, const char *film_id, const char *cinem
     char end_time[BUFFER_SIZE];
     if (!get_show_times(show_id, show_date, start_time, end_time))
     {
-        mysql_query(conn, "ROLLBACK");
+        mysql_query(conn_local, "ROLLBACK");
+        mysql_close(conn_local);
+        strcpy(response, "5000\r\n"); // Internal Server Error
         return false;
     }
 
@@ -608,13 +669,15 @@ bool book_ticket_db(const char *username, const char *film_id, const char *cinem
         fprintf(stderr, "COMMIT Error: %s\n", mysql_error(conn_local));
         mysql_query(conn_local, "ROLLBACK");
         mysql_close(conn_local);
+        strcpy(response, "5000\r\n"); // Internal Server Error
         return false;
     }
 
-    // Construct response
-    sprintf(response, "2000\r\n%s\r\n%s\r\n%s\r\n[%s, %s, %s]\r\n%d\r\n%s",
-            username, film_name, cinema_name, show_date, start_time, end_time,
-            seat_number, seat_list_str);
+    // Construct response with ticket_id included
+    // Format: "2000\r\n<ticket_id>\r\n<username>\r\n<film_name>\r\n<cinema_name>\r\n[show_date, start_time, end_time]\r\n<num_seats>\r\n[seat_id1,seat_id2,...]\r\n"
+    snprintf(response, BUFFER_SIZE, "2000\r\n%lu\r\n%s\r\n%s\r\n%s\r\n[%s, %s, %s]\r\n%d\r\n%s\r\n",
+             ticket_id, username, film_name, cinema_name, show_date, start_time, end_time,
+             seat_number, seat_list_str);
 
     mysql_close(conn_local);
     return true;
