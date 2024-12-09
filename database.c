@@ -675,8 +675,8 @@ bool book_ticket_db(const char *username, const char *film_id, const char *cinem
 
     // Construct response with ticket_id included
     // Format: "2000\r\n<ticket_id>\r\n<username>\r\n<film_name>\r\n<cinema_name>\r\n[show_date, start_time, end_time]\r\n<num_seats>\r\n[seat_id1,seat_id2,...]\r\n"
-    snprintf(response, BUFFER_SIZE, "2000\r\n%lu\r\n%s\r\n%s\r\n%s\r\n[%s, %s, %s]\r\n%d\r\n%s\r\n",
-             ticket_id, username, film_name, cinema_name, show_date, start_time, end_time,
+    snprintf(response, BUFFER_SIZE, "2000\r\n%lu\r\n%s\r\n%s\r\n[%s, %s, %s]\r\n%d\r\n%s\r\n",
+             ticket_id, film_name, cinema_name, show_date, start_time, end_time,
              seat_number, seat_list_str);
 
     mysql_close(conn_local);
