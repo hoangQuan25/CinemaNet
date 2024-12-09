@@ -541,14 +541,13 @@ void book_ticket(int sock, const char *username, const char *token) {
                     if (strcmp(code, "2000") == 0) {
                         // Extract information
                         char *ticket_id_str = strtok(NULL, "\r\n");
-                        char *username_resp = strtok(NULL, "\r\n");
                         char *film_name = strtok(NULL, "\r\n");
                         char *cinema_name = strtok(NULL, "\r\n");
                         char *show_info = strtok(NULL, "\r\n"); // [yyyy-mm-dd, hh:mm, hh:mm]
                         char *seat_number_str = strtok(NULL, "\r\n");
                         char *seat_list_resp = strtok(NULL, "\r\n"); // [seat_id1, seat_id2,...]
 
-                         if (ticket_id_str == NULL || username_resp == NULL || film_name == NULL ||
+                         if (ticket_id_str == NULL || film_name == NULL ||
                             cinema_name == NULL || show_info == NULL || seat_number_str == NULL ||
                             seat_list_resp == NULL) {
                             printf("Malformed response from server.\n");
@@ -564,7 +563,7 @@ void book_ticket(int sock, const char *username, const char *token) {
                         int seat_number = atoi(seat_number_str);
 
                         // Print ticket
-                        print_ticket(ticket_id, username_resp, film_name, cinema_name, show_info, seat_number, seat_list_resp);
+                        print_ticket(ticket_id, username, film_name, cinema_name, show_info, seat_number, seat_list_resp);
                     } else {
                         printf("An error occurred during booking.\n");
                     }
