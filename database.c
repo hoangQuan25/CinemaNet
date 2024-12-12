@@ -109,7 +109,7 @@ bool change_password_db(const char *username, const char *old_password, const ch
     }
 }
 
-bool search_films_by_title_db(const char *title, char *films)
+bool search_showing_films_by_title_db(const char *title, char *films)
 {
     char query[BUFFER_SIZE];
     char escaped_title[2 * strlen(title) + 1]; // Buffer for escaped title
@@ -124,6 +124,61 @@ bool search_films_by_title_db(const char *title, char *films)
              "JOIN shows ON films.id = shows.film_id "
              "WHERE films.film_name LIKE '%%%s%%' "
              "AND shows.date >= CURDATE()",
+             escaped_title);
+
+    // Execute the query
+    if (mysql_query(conn, query))
+    {
+        fprintf(stderr, "Search Films Error: %s\n", mysql_error(conn));
+        return false;
+    }
+
+    MYSQL_RES *result = mysql_store_result(conn);
+    if (result == NULL)
+    {
+        fprintf(stderr, "Search Films Error: %s\n", mysql_error(conn));
+        return false;
+    }
+
+    int num_rows = mysql_num_rows(result);
+    if (num_rows == 0)
+    {
+        mysql_free_result(result);
+        return false;
+    }
+
+    MYSQL_ROW row;
+    strcpy(films, "[");
+    while ((row = mysql_fetch_row(result)))
+    {
+        strcat(films, "{");
+        strcat(films, row[0]); // film_id
+        strcat(films, ", ");
+        strcat(films, row[1]); // film_name
+        strcat(films, ", ");
+        strcat(films, row[2]); // description
+        strcat(films, "}, ");
+    }
+    strcat(films, "]");
+
+    mysql_free_result(result);
+
+    return true;
+}
+
+bool search_films_by_title_db(const char *title, char *films)
+{
+    char query[BUFFER_SIZE];
+    char escaped_title[2 * strlen(title) + 1]; // Buffer for escaped title
+
+    // Escape the title to prevent SQL injection
+    mysql_real_escape_string(conn, escaped_title, title, strlen(title));
+
+    // Construct the query to select films with scheduled shows
+    snprintf(query, BUFFER_SIZE,
+             "SELECT DISTINCT films.id, films.film_name, films.length "
+             "FROM films "
+             "WHERE films.film_name LIKE '%%%s%%' ",
              escaped_title);
 
     // Execute the query
@@ -437,7 +492,7 @@ bool get_seat_map(const char *show_id, char *seat_map_str)
 
 /**
  * @brief Books a ticket by updating the database and returns the booking details.
- * 
+ *
  * @param username Username of the user booking the ticket
  * @param film_id ID of the selected film
  * @param cinema_id ID of the selected cinema
@@ -449,7 +504,7 @@ bool get_seat_map(const char *show_id, char *seat_map_str)
  * @return false Booking failed
  */
 bool book_ticket_db(const char *username, const char *film_id, const char *cinema_id,
-                   const char *show_id, int seat_number, const char *seat_list_str, char *response)
+                    const char *show_id, int seat_number, const char *seat_list_str, char *response)
 {
     MYSQL *conn_local = mysql_init(NULL);
     if (conn_local == NULL)
@@ -831,55 +886,15 @@ int add_film_db(const char *film_name, const char *category_id, const char *desc
     return 1; // Success
 }
 
-bool check_film_db(const char *film_name, char *film_id, char *description, char *length_str)
-{
-    char query[BUFFER_SIZE];
-    char escaped_film_name[2 * strlen(film_name) + 1];
-
-    // Escape film name to prevent SQL injection
-    mysql_real_escape_string(conn, escaped_film_name, film_name, strlen(film_name));
-
-    snprintf(query, BUFFER_SIZE,
-             "SELECT id, description, length FROM films WHERE film_name='%s'",
-             escaped_film_name);
-
-    if (mysql_query(conn, query))
-    {
-        fprintf(stderr, "Check Film Error: %s\n", mysql_error(conn));
-        return false;
-    }
-
-    MYSQL_RES *result = mysql_store_result(conn);
-    if (result == NULL)
-    {
-        fprintf(stderr, "Check Film Error: %s\n", mysql_error(conn));
-        return false;
-    }
-
-    MYSQL_ROW row = mysql_fetch_row(result);
-    if (row)
-    {
-        strcpy(film_id, row[0]);
-        strcpy(description, row[1]);
-        strcpy(length_str, row[2]);
-        mysql_free_result(result);
-        return true;
-    }
-    else
-    {
-        mysql_free_result(result);
-        return false;
-    }
-}
-
-int add_show_db(const char *film_id, const char *cinema_id, const char *date_str, 
-    const char *start_time_str, const char *end_time_str) 
+int add_show_db(const char *film_id, const char *cinema_id, const char *date_str,
+                const char *start_time_str, const char *end_time_str)
 {
     char query[BUFFER_SIZE];
 
     // Step 1: Check if the show date is today or in the future
     struct tm show_date_tm = {0};
-    if (strptime(date_str, "%Y-%m-%d", &show_date_tm) == NULL) {
+    if (strptime(date_str, "%Y-%m-%d", &show_date_tm) == NULL)
+    {
         fprintf(stderr, "Invalid date format.\n");
         return -1; // Validation failed
     }
@@ -892,27 +907,32 @@ int add_show_db(const char *film_id, const char *cinema_id, const char *date_str
     current_date_tm->tm_sec = 0;
     time_t current_date_time = mktime(current_date_tm);
 
-    if (difftime(show_date_time, current_date_time) < 0) {
+    if (difftime(show_date_time, current_date_time) < 0)
+    {
         fprintf(stderr, "Show date must be today or in the future.\n");
         return -1; // Validation failed
     }
 
     // Step 2: Fetch the film's length from the database
-    snprintf(query, BUFFER_SIZE, "SELECT length FROM films WHERE id = %s", film_id);
+    snprintf(query, BUFFER_SIZE,
+             "SELECT length FROM films WHERE id = %s", film_id);
 
-    if (mysql_query(conn, query)) {
+    if (mysql_query(conn, query))
+    {
         fprintf(stderr, "Get Film Length Error: %s\n", mysql_error(conn));
         return -1; // Validation failed
     }
 
     MYSQL_RES *film_result = mysql_store_result(conn);
-    if (film_result == NULL) {
+    if (film_result == NULL)
+    {
         fprintf(stderr, "Get Film Length Error: %s\n", mysql_error(conn));
         return -1; // Validation failed
     }
 
     MYSQL_ROW film_row = mysql_fetch_row(film_result);
-    if (film_row == NULL) {
+    if (film_row == NULL)
+    {
         mysql_free_result(film_result);
         fprintf(stderr, "Film not found.\n");
         return -1; // Validation failed
@@ -932,24 +952,27 @@ int add_show_db(const char *film_id, const char *cinema_id, const char *date_str
     struct tm end_tm = {0};
 
     if (strptime(datetime_start_str, "%Y-%m-%d %H:%M", &start_tm) == NULL ||
-        strptime(datetime_end_str, "%Y-%m-%d %H:%M", &end_tm) == NULL) {
-        // fprintf(stderr, "Invalid time format.\n");
-        return -1; // Validation failed
+        strptime(datetime_end_str, "%Y-%m-%d %H:%M", &end_tm) == NULL)
+    {
+        // Invalid time format
+        return -1;
     }
 
     time_t start_time = mktime(&start_tm);
     time_t end_time = mktime(&end_tm);
 
-    if (difftime(end_time, start_time) <= 0) {
-        // fprintf(stderr, "End time must be after start time.\n");
-        return -1; // Validation failed
+    if (difftime(end_time, start_time) <= 0)
+    {
+        // End time must be after start time
+        return -1;
     }
 
     double show_duration = difftime(end_time, start_time) / 60; // in minutes
 
-    if (show_duration < film_length) {
-        // fprintf(stderr, "Show duration (%.0f minutes) is less than film length (%d minutes).\n", show_duration, film_length);
-        return -1; // Validation failed
+    if (show_duration < film_length)
+    {
+        // Show duration is less than film length
+        return -1;
     }
 
     // Step 4: Get seat_quantity from cinemas table
@@ -957,22 +980,25 @@ int add_show_db(const char *film_id, const char *cinema_id, const char *date_str
              "SELECT seat_quantity FROM cinemas WHERE id = %s",
              cinema_id);
 
-    if (mysql_query(conn, query)) {
+    if (mysql_query(conn, query))
+    {
         fprintf(stderr, "Get Seat Quantity Error: %s\n", mysql_error(conn));
         return -1; // Validation failed
     }
 
     MYSQL_RES *result = mysql_store_result(conn);
-    if (result == NULL) {
+    if (result == NULL)
+    {
         fprintf(stderr, "Get Seat Quantity Error: %s\n", mysql_error(conn));
         return -1; // Validation failed
     }
 
     MYSQL_ROW row = mysql_fetch_row(result);
-    if (row == NULL) {
+    if (row == NULL)
+    {
         mysql_free_result(result);
-        // fprintf(stderr, "Cinema not found.\n");
-        return -1; // Validation failed
+        // Cinema not found
+        return -1;
     }
 
     int total_seats = atoi(row[0]);
@@ -981,12 +1007,43 @@ int add_show_db(const char *film_id, const char *cinema_id, const char *date_str
     // Step 5: Generate seat map
     int seats_per_row = 10;
     char seat_map[BUFFER_SIZE] = "";
-    for (int i = 0; i < total_seats; i++) {
-        if (i > 0 && i % seats_per_row == 0) {
+    for (int i = 0; i < total_seats; i++)
+    {
+        if (i > 0 && i % seats_per_row == 0)
+        {
             strcat(seat_map, "5"); // Row separator
         }
         strcat(seat_map, "0"); // Available seat
     }
+
+    // ** New Step: Check if show already exists **
+    snprintf(query, BUFFER_SIZE,
+             "SELECT COUNT(*) FROM shows "
+             "WHERE film_id = %s AND cinema_id = %s AND date = '%s' "
+             "AND start_time = '%s' AND end_time = '%s'",
+             film_id, cinema_id, date_str, start_time_str, end_time_str);
+
+    if (mysql_query(conn, query))
+    {
+        fprintf(stderr, "Check Existing Show Error: %s\n", mysql_error(conn));
+        return -1; // Validation failed
+    }
+
+    MYSQL_RES *check_result = mysql_store_result(conn);
+    if (check_result == NULL)
+    {
+        fprintf(stderr, "Check Existing Show Error: %s\n", mysql_error(conn));
+        return -1; // Validation failed
+    }
+
+    MYSQL_ROW check_row = mysql_fetch_row(check_result);
+    if (check_row && atoi(check_row[0]) > 0)
+    {
+        mysql_free_result(check_result);
+        // Show already exists
+        return -1;
+    }
+    mysql_free_result(check_result);
 
     // Step 6: Insert new show into the shows table
     snprintf(query, BUFFER_SIZE,
@@ -994,7 +1051,8 @@ int add_show_db(const char *film_id, const char *cinema_id, const char *date_str
              "VALUES (%s, %s, '%s', '%s', '%s', '%s')",
              film_id, cinema_id, date_str, start_time_str, end_time_str, seat_map);
 
-    if (mysql_query(conn, query)) {
+    if (mysql_query(conn, query))
+    {
         fprintf(stderr, "Add Show Error: %s\n", mysql_error(conn));
         return -1; // Validation failed
     }
@@ -1002,7 +1060,8 @@ int add_show_db(const char *film_id, const char *cinema_id, const char *date_str
     return 1; // Success
 }
 
-bool get_films_by_cinema_db(const char *cinema_id, char *films) {
+bool get_films_by_cinema_db(const char *cinema_id, char *films)
+{
     char query[BUFFER_SIZE];
     snprintf(query, BUFFER_SIZE,
              "SELECT DISTINCT f.id, f.film_name, f.length "
@@ -1011,26 +1070,30 @@ bool get_films_by_cinema_db(const char *cinema_id, char *films) {
              "WHERE s.cinema_id = %s AND s.date >= CURDATE()",
              cinema_id);
 
-    if (mysql_query(conn, query)) {
+    if (mysql_query(conn, query))
+    {
         fprintf(stderr, "Get Films by Cinema Error: %s\n", mysql_error(conn));
         return false;
     }
 
     MYSQL_RES *result = mysql_store_result(conn);
-    if (result == NULL) {
+    if (result == NULL)
+    {
         fprintf(stderr, "Get Films by Cinema Error: %s\n", mysql_error(conn));
         return false;
     }
 
     int num_rows = mysql_num_rows(result);
-    if (num_rows == 0) {
+    if (num_rows == 0)
+    {
         mysql_free_result(result);
         return false;
     }
 
     MYSQL_ROW row;
     strcpy(films, "[");
-    while ((row = mysql_fetch_row(result))) {
+    while ((row = mysql_fetch_row(result)))
+    {
         strcat(films, "{");
         strcat(films, row[0]); // film_id
         strcat(films, ", ");
@@ -1044,7 +1107,8 @@ bool get_films_by_cinema_db(const char *cinema_id, char *films) {
     return true;
 }
 
-bool get_shows_db(const char *film_id, const char *cinema_id, char *shows) {
+bool get_shows_db(const char *film_id, const char *cinema_id, char *shows)
+{
     char query[BUFFER_SIZE];
     snprintf(query, BUFFER_SIZE,
              "SELECT id, date, start_time, end_time "
@@ -1052,26 +1116,30 @@ bool get_shows_db(const char *film_id, const char *cinema_id, char *shows) {
              "WHERE film_id = %s AND cinema_id = %s",
              film_id, cinema_id);
 
-    if (mysql_query(conn, query)) {
+    if (mysql_query(conn, query))
+    {
         fprintf(stderr, "Get Shows Error: %s\n", mysql_error(conn));
         return false;
     }
 
     MYSQL_RES *result = mysql_store_result(conn);
-    if (result == NULL) {
+    if (result == NULL)
+    {
         fprintf(stderr, "Get Shows Error: %s\n", mysql_error(conn));
         return false;
     }
 
     int num_rows = mysql_num_rows(result);
-    if (num_rows == 0) {
+    if (num_rows == 0)
+    {
         mysql_free_result(result);
         return false;
     }
 
     MYSQL_ROW row;
     strcpy(shows, "[");
-    while ((row = mysql_fetch_row(result))) {
+    while ((row = mysql_fetch_row(result)))
+    {
         strcat(shows, "{");
         strcat(shows, row[0]); // show_id
         strcat(shows, ", ");
@@ -1087,7 +1155,8 @@ bool get_shows_db(const char *film_id, const char *cinema_id, char *shows) {
     return true;
 }
 
-bool delete_show_db(const char *show_id) {
+bool delete_show_db(const char *show_id)
+{
     char query[BUFFER_SIZE];
 
     // Check if the show date is in the future
@@ -1095,19 +1164,22 @@ bool delete_show_db(const char *show_id) {
              "SELECT date FROM shows WHERE id = %s",
              show_id);
 
-    if (mysql_query(conn, query)) {
+    if (mysql_query(conn, query))
+    {
         // fprintf(stderr, "Delete Show Error: %s\n", mysql_error(conn));
         return false;
     }
 
     MYSQL_RES *result = mysql_store_result(conn);
-    if (result == NULL) {
+    if (result == NULL)
+    {
         // fprintf(stderr, "Delete Show Error: %s\n", mysql_error(conn));
         return false;
     }
 
     MYSQL_ROW row = mysql_fetch_row(result);
-    if (row == NULL) {
+    if (row == NULL)
+    {
         mysql_free_result(result);
         // fprintf(stderr, "Show not found.\n");
         return false;
@@ -1122,19 +1194,22 @@ bool delete_show_db(const char *show_id) {
              "SELECT DATEDIFF('%s', CURDATE())",
              date_str);
 
-    if (mysql_query(conn, query_date)) {
+    if (mysql_query(conn, query_date))
+    {
         // fprintf(stderr, "Delete Show Date Compare Error: %s\n", mysql_error(conn));
         return false;
     }
 
     result = mysql_store_result(conn);
-    if (result == NULL) {
+    if (result == NULL)
+    {
         // fprintf(stderr, "Delete Show Date Compare Error: %s\n", mysql_error(conn));
         return false;
     }
 
     row = mysql_fetch_row(result);
-    if (row == NULL) {
+    if (row == NULL)
+    {
         mysql_free_result(result);
         // fprintf(stderr, "Date comparison failed.\n");
         return false;
@@ -1143,7 +1218,8 @@ bool delete_show_db(const char *show_id) {
     int date_diff = atoi(row[0]);
     mysql_free_result(result);
 
-    if (date_diff < 0) {
+    if (date_diff < 0)
+    {
         // fprintf(stderr, "Cannot delete past shows.\n");
         return false;
     }
@@ -1153,7 +1229,8 @@ bool delete_show_db(const char *show_id) {
              "DELETE FROM shows WHERE id = %s",
              show_id);
 
-    if (mysql_query(conn, query)) {
+    if (mysql_query(conn, query))
+    {
         // fprintf(stderr, "Delete Show Error: %s\n", mysql_error(conn));
         return false;
     }
@@ -1161,7 +1238,8 @@ bool delete_show_db(const char *show_id) {
     return true;
 }
 
-int edit_show_db(const char *show_id, const char *date_str, const char *start_time_str, const char *end_time_str) {
+int edit_show_db(const char *show_id, const char *date_str, const char *start_time_str, const char *end_time_str)
+{
     // Perform the same validations as in add_show_db
     // Ensure the new date and times are valid and meet the film length requirements
 
@@ -1169,19 +1247,22 @@ int edit_show_db(const char *show_id, const char *date_str, const char *start_ti
     char query[BUFFER_SIZE];
     snprintf(query, BUFFER_SIZE, "SELECT film_id FROM shows WHERE id = %s", show_id);
 
-    if (mysql_query(conn, query)) {
+    if (mysql_query(conn, query))
+    {
         // fprintf(stderr, "Edit Show Error: %s\n", mysql_error(conn));
         return -1;
     }
 
     MYSQL_RES *result = mysql_store_result(conn);
-    if (result == NULL) {
+    if (result == NULL)
+    {
         // fprintf(stderr, "Edit Show Error: %s\n", mysql_error(conn));
         return -1;
     }
 
     MYSQL_ROW row = mysql_fetch_row(result);
-    if (row == NULL) {
+    if (row == NULL)
+    {
         mysql_free_result(result);
         // fprintf(stderr, "Show not found.\n");
         return -1;
@@ -1194,19 +1275,22 @@ int edit_show_db(const char *show_id, const char *date_str, const char *start_ti
     // Fetch the film length
     snprintf(query, BUFFER_SIZE, "SELECT length FROM films WHERE id = %s", film_id);
 
-    if (mysql_query(conn, query)) {
+    if (mysql_query(conn, query))
+    {
         // fprintf(stderr, "Edit Show Error: %s\n", mysql_error(conn));
         return -1;
     }
 
     result = mysql_store_result(conn);
-    if (result == NULL) {
+    if (result == NULL)
+    {
         // fprintf(stderr, "Edit Show Error: %s\n", mysql_error(conn));
         return -1;
     }
 
     row = mysql_fetch_row(result);
-    if (row == NULL) {
+    if (row == NULL)
+    {
         mysql_free_result(result);
         // fprintf(stderr, "Film not found.\n");
         return -1;
@@ -1223,7 +1307,8 @@ int edit_show_db(const char *show_id, const char *date_str, const char *start_ti
              "UPDATE shows SET date = '%s', start_time = '%s', end_time = '%s' WHERE id = %s",
              date_str, start_time_str, end_time_str, show_id);
 
-    if (mysql_query(conn, query)) {
+    if (mysql_query(conn, query))
+    {
         // fprintf(stderr, "Edit Show Error: %s\n", mysql_error(conn));
         return -1;
     }

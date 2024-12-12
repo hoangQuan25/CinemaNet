@@ -267,14 +267,6 @@ void display_seat_map(const char *seat_map_str) {
     printf("\n");
 }
 
-// display_films_with_length.c
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include "utils.h"
-
-#define BUFFER_SIZE 1024
-
 void display_films_with_length(const char *data) {
     char data_copy[BUFFER_SIZE];
     snprintf(data_copy, BUFFER_SIZE, "%s", data); // Safe copy
