@@ -41,9 +41,11 @@ bool process_client_message(const char *message, char *response)
             {
                 sprintf(response, "1010\r\n%s\r\n", token);
             }
-            else
+            else if (role == 0)
             {
                 sprintf(response, "1011\r\n%s\r\n", token);
+            } else if (role == 2) {
+                sprintf(response, "1012\r\n%s\r\n", token);
             }
         }
         else
@@ -427,6 +429,52 @@ bool process_client_message(const char *message, char *response)
         else
         {
             strcpy(response, "2070\r\n");
+        }
+    } else if (strcmp(command, "SEARCH_USER") == 0) {
+        char *username_keyword = strtok(NULL, "\r\n");
+        char *token = strtok(NULL, "\r\n");
+        char role_str[BUFFER_SIZE];
+        if (!verify_token(token)) {
+            strcpy(response, "4010\r\n");
+            free(msg_copy);
+            return false;
+        }
+
+        char users_list[BUFFER_SIZE];
+        if (search_users_db(username_keyword, users_list)) {
+            snprintf(response, BUFFER_SIZE, "2000\r\n%s\r\n", users_list);
+        } else {
+            strcpy(response, "5000\r\n");
+        }
+    }
+    else if (strcmp(command, "ASSIGN_ROLE") == 0) {
+        char *user_id_str = strtok(NULL, "\r\n");
+        char *old_role_str = strtok(NULL, "\r\n");
+        char *new_role_str = strtok(NULL, "\r\n");
+        char *token = strtok(NULL, "\r\n");
+
+        char role_str[BUFFER_SIZE];
+        if (!verify_token(token)) {
+            strcpy(response, "4010\r\n");
+            free(msg_copy);
+            return false;
+        }
+
+        int old_role = atoi(old_role_str);
+        int new_role = atoi(new_role_str);
+
+        // Validate roles
+        // allowed: (old=0,seller -> new=1,user) or (old=1,user -> new=0,seller)
+        if ((old_role == new_role) || (new_role != 0 && new_role != 1)) {
+            strcpy(response, "4002\r\n");
+            free(msg_copy);
+            return false;
+        }
+
+        if (assign_role_db(user_id_str, new_role)) {
+            strcpy(response, "2000\r\n");
+        } else {
+            strcpy(response, "5000\r\n");
         }
     }
 

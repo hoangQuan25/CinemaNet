@@ -84,7 +84,7 @@ void main_menu(int sock) {
                         printf("Invalid choice. Please try again.\n");
                 }
             } else if (user_role == 0) {
-                // Admin/Seller menu
+                // Seller menu
                 printf("\n===== CinemaNet (Seller) =====\n");
                 printf("1. Search Films by Title\n");
                 printf("2. Browse Films\n");
@@ -122,6 +122,60 @@ void main_menu(int sock) {
                         modify_show(sock, token);
                         break;
                     case 8:
+                        if (logout_user(sock, token)) {
+                            is_logged_in = 0;
+                            memset(token, 0, BUFFER_SIZE);
+                            memset(username, 0, BUFFER_SIZE);
+                            user_role = 1;
+                        }
+                        break;
+                    default:
+                        printf("Invalid choice. Please try again.\n");
+                }
+            } else if (user_role == 2) {
+                // Admin menu
+                printf("\n===== CinemaNet (Seller) =====\n");
+                printf("1. Search Films by Title\n");
+                printf("2. Browse Films\n");
+                printf("3. Book ticket\n");
+                printf("4. Change password\n");
+                printf("\n------- Seller features -------\n");
+                printf("5. Add New Film\n");
+                printf("6. Show Film\n");
+                printf("7. Edit Show\n");
+                printf("\n------- Admin features -------\n");
+                printf("8. Role assignment\n");
+                printf("9. Logout\n");
+                printf("Enter your choice: ");
+                scanf("%d", &choice);
+                getchar(); // Consume newline
+
+                switch (choice) {
+                    case 1:
+                        search_films_by_title(sock, token);
+                        break;
+                    case 2:
+                        browse_films(sock, token);
+                        break;
+                    case 3:
+                        book_ticket(sock, username, token);
+                        break;
+                    case 4:
+                        change_password(sock, token);
+                        break;
+                    case 5:
+                        add_new_film(sock, token);
+                        break;
+                    case 6:
+                        show_film(sock, token);
+                        break;
+                    case 7:
+                        modify_show(sock, token);
+                        break;
+                    case 8:
+                        assign_role(sock, token);
+                        break;
+                    case 9:
                         if (logout_user(sock, token)) {
                             is_logged_in = 0;
                             memset(token, 0, BUFFER_SIZE);
@@ -215,7 +269,7 @@ int login_user(int sock, char *token, char *username_out, int *user_role) {
 
     // Process server response
     char *code = strtok(server_reply, "\r\n");
-    if (strcmp(code, "1010") == 0 || strcmp(code, "1011") == 0) {
+    if (strcmp(code, "1010") == 0 || strcmp(code, "1011") == 0 || strcmp(code, "1012") == 0) {
         char *received_token = strtok(NULL, "\r\n");
         strcpy(token, received_token);
         printf("Login successful.\n");
@@ -225,7 +279,9 @@ int login_user(int sock, char *token, char *username_out, int *user_role) {
         if (strcmp(code, "1010") == 0) {
             *user_role = 1; // Normal user
         } else if (strcmp(code, "1011") == 0) {
-            *user_role = 0; // Admin/Seller
+            *user_role = 0; // Seller
+        } else if (strcmp(code, "1012") == 0) {
+            *user_role = 2; // Admin
         }
         return 1; // Success
     } else if (strcmp(code, "2011") == 0) {
@@ -1176,7 +1232,98 @@ void edit_show(int sock, const char *token) {
     }
 }
 
+void assign_role(int sock, const char *token) {
+    char keyword[BUFFER_SIZE];
+    char message[BUFFER_SIZE];
+    char server_reply[BUFFER_SIZE];
 
+    printf("Enter username keyword to search for users: ");
+    fgets(keyword, BUFFER_SIZE, stdin);
+    trim_newline(keyword);
+
+    // Construct SEARCH_USER message
+    snprintf(message, BUFFER_SIZE, "SEARCH_USER\r\n%s\r\n%s", keyword, token);
+    send(sock, message, strlen(message), 0);
+
+    int read_size = recv(sock, server_reply, BUFFER_SIZE - 1, 0);
+    if (read_size <= 0) {
+        printf("Server disconnected or error.\n");
+        return;
+    }
+    server_reply[read_size] = '\0';
+
+    char *code = strtok(server_reply, "\r\n");
+    if (strcmp(code, "2000") == 0) {
+        char *data = strtok(NULL, "\r\n");
+        UserInfo users[100];
+        int user_count = 0;
+        parse_users(data, users, &user_count);
+
+        display_users(users, user_count);
+
+        if (user_count == 0) {
+            return; // No users
+        }
+
+        printf("Enter the number of the user you wish to modify: ");
+        int selection;
+        scanf("%d", &selection);
+        getchar();
+        if (selection < 1 || selection > user_count) {
+            printf("Invalid selection.\n");
+            return;
+        }
+
+        UserInfo chosen = users[selection - 1];
+        int old_role = chosen.role;
+        int new_role = -1;
+
+        if (old_role == 0) { // seller
+            printf("User '%s' is currently a seller. Demote to normal user? (y/n): ", chosen.username);
+            char ch = getchar(); getchar();
+            if (ch == 'y') new_role = 1; else return;
+        } else if (old_role == 1) { // user
+            printf("User '%s' is currently normal user. Promote to seller? (y/n): ", chosen.username);
+            char ch = getchar(); getchar();
+            if (ch == 'y') new_role = 0; else return;
+        } else if (old_role == 2) {
+            printf("This user is an admin. No changes allowed.\n");
+            return;
+        } else {
+            printf("Unknown role.\n");
+            return;
+        }
+
+        snprintf(message, BUFFER_SIZE, "ASSIGN_ROLE\r\n%d\r\n%d\r\n%d\r\n%s",
+                 chosen.user_id, old_role, new_role, token);
+        send(sock, message, strlen(message), 0);
+
+        read_size = recv(sock, server_reply, BUFFER_SIZE - 1, 0);
+        if (read_size <= 0) {
+            printf("Server disconnected or error.\n");
+            return;
+        }
+        server_reply[read_size] = '\0';
+
+        code = strtok(server_reply, "\r\n");
+        if (strcmp(code, "2000") == 0) {
+            printf("Role updated successfully!\n");
+        } else if (strcmp(code, "5000") == 0) {
+            printf("Error: Unable to update role.\n");
+        } else if (strcmp(code, "4002") == 0) {
+            printf("Invalid role specified.\n");
+        } else if (strcmp(code, "4010") == 0) {
+            printf("Unauthorized access.\n");
+        } else {
+            printf("An unexpected error occurred.\n");
+        }
+
+    } else if (strcmp(code, "5000") == 0) {
+        printf("No users found or server error.\n");
+    } else {
+        printf("An unexpected error occurred.\n");
+    }
+}
 
 
 

@@ -10,6 +10,19 @@
 
 #define BUFFER_SIZE 4096
 
+static const char* get_role_name(int role) {
+    switch (role) {
+        case 0:
+            return "seller";
+        case 1:
+            return "user";
+        case 2:
+            return "admin";
+        default:
+            return "unknown";
+    }
+}
+
 void display_films(const char *data) {
     char data_copy[BUFFER_SIZE];
     strcpy(data_copy, data);
@@ -344,6 +357,19 @@ void display_films_with_length(const char *data) {
     }
 }
 
+void display_users(UserInfo users[], int user_count) {
+    if (user_count == 0) {
+        printf("No users found.\n");
+        return;
+    }
+
+    printf("%-5s %-20s %-30s %-10s\n", "No.", "Username", "Full Name", "Role");
+    printf("-------------------------------------------------------------\n");
+    for (int i = 0; i < user_count; i++) {
+        const char *role_str = get_role_name(users[i].role);
+        printf("%-5d %-20s %-30s %-10s\n", i + 1, users[i].username, users[i].full_name, role_str);
+    }
+}
 
 
 

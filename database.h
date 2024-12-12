@@ -30,5 +30,7 @@ bool get_films_by_cinema_db(const char *cinema_id, char *films);
 bool get_shows_db(const char *film_id, const char *cinema_id, char *shows);
 bool delete_show_db(const char *show_id);
 int edit_show_db(const char *show_id, const char *date_str, const char *start_time_str, const char *end_time_str);
+bool search_users_db(const char *keyword, char *users_list);
+bool assign_role_db(const char *user_id_str, int new_role);
 
 #endif // DATABASE_H
