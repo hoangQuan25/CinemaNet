@@ -1315,3 +1315,158 @@ int edit_show_db(const char *show_id, const char *date_str, const char *start_ti
 
     return 1;
 }
+
+bool search_users_db(const char *keyword, char *users_list) {
+    MYSQL_STMT *stmt;
+    MYSQL_BIND bind[1];
+    memset(bind, 0, sizeof(bind));
+
+    const char *query =
+        "SELECT id, username, full_name, role "
+        "FROM users "
+        "WHERE username LIKE CONCAT('%', ?, '%')";
+
+    stmt = mysql_stmt_init(conn);
+    if (!stmt) {
+        fprintf(stderr, "mysql_stmt_init() failed\n");
+        return false;
+    }
+
+    if (mysql_stmt_prepare(stmt, query, strlen(query))) {
+        fprintf(stderr, "mysql_stmt_prepare() failed: %s\n", mysql_stmt_error(stmt));
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    // Bind parameter
+    bind[0].buffer_type = MYSQL_TYPE_STRING;
+    bind[0].buffer = (char *)keyword;
+    bind[0].buffer_length = strlen(keyword);
+
+    if (mysql_stmt_bind_param(stmt, bind)) {
+        fprintf(stderr, "mysql_stmt_bind_param() failed: %s\n", mysql_stmt_error(stmt));
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    // Execute
+    if (mysql_stmt_execute(stmt)) {
+        fprintf(stderr, "mysql_stmt_execute() failed: %s\n", mysql_stmt_error(stmt));
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    // Bind results
+    MYSQL_BIND result_bind[4];
+    memset(result_bind, 0, sizeof(result_bind));
+
+    int user_id;
+    char username[BUFFER_SIZE];
+    char full_name[BUFFER_SIZE];
+    int role;
+
+    result_bind[0].buffer_type = MYSQL_TYPE_LONG;
+    result_bind[0].buffer = (char *)&user_id;
+
+    result_bind[1].buffer_type = MYSQL_TYPE_STRING;
+    result_bind[1].buffer = (char *)username;
+    result_bind[1].buffer_length = sizeof(username);
+
+    result_bind[2].buffer_type = MYSQL_TYPE_STRING;
+    result_bind[2].buffer = (char *)full_name;
+    result_bind[2].buffer_length = sizeof(full_name);
+
+    result_bind[3].buffer_type = MYSQL_TYPE_LONG;
+    result_bind[3].buffer = (char *)&role;
+
+    if (mysql_stmt_bind_result(stmt, result_bind)) {
+        fprintf(stderr, "mysql_stmt_bind_result() failed: %s\n", mysql_stmt_error(stmt));
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    if (mysql_stmt_store_result(stmt)) {
+        fprintf(stderr, "mysql_stmt_store_result() failed: %s\n", mysql_stmt_error(stmt));
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    int num_rows = mysql_stmt_num_rows(stmt);
+    if (num_rows == 0) {
+        mysql_stmt_free_result(stmt);
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    strcpy(users_list, "[");
+
+    bool first = true;
+    while (mysql_stmt_fetch(stmt) == 0) {
+        if (!first) {
+            strcat(users_list, ", ");
+        } else {
+            first = false;
+        }
+
+        char user_entry[BUFFER_SIZE];
+        snprintf(user_entry, BUFFER_SIZE, "{%d, %s, %s, %d}", user_id, username, full_name, role);
+        strcat(users_list, user_entry);
+    }
+
+    strcat(users_list, "]");
+
+    mysql_stmt_free_result(stmt);
+    mysql_stmt_close(stmt);
+    return true;
+}
+
+bool assign_role_db(const char *user_id_str, int new_role) {
+    MYSQL_STMT *stmt;
+    MYSQL_BIND bind[2];
+    memset(bind, 0, sizeof(bind));
+
+    const char *query = "UPDATE users SET role=? WHERE id=?";
+
+    stmt = mysql_stmt_init(conn);
+    if (!stmt) {
+        fprintf(stderr, "mysql_stmt_init() failed\n");
+        return false;
+    }
+
+    if (mysql_stmt_prepare(stmt, query, strlen(query))) {
+        fprintf(stderr, "mysql_stmt_prepare() failed: %s\n", mysql_stmt_error(stmt));
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    int user_id = atoi(user_id_str);
+
+    // Bind parameters
+    bind[0].buffer_type = MYSQL_TYPE_LONG;
+    bind[0].buffer = (char *)&new_role;
+
+    bind[1].buffer_type = MYSQL_TYPE_LONG;
+    bind[1].buffer = (char *)&user_id;
+
+    if (mysql_stmt_bind_param(stmt, bind)) {
+        fprintf(stderr, "mysql_stmt_bind_param() failed: %s\n", mysql_stmt_error(stmt));
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    if (mysql_stmt_execute(stmt)) {
+        fprintf(stderr, "mysql_stmt_execute() failed: %s\n", mysql_stmt_error(stmt));
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    // Check affected rows
+    if (mysql_stmt_affected_rows(stmt) == 0) {
+        // No row updated - user might not exist
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    mysql_stmt_close(stmt);
+    return true;
+}

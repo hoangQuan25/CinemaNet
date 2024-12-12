@@ -23,6 +23,7 @@ bool get_shows(int sock, const char *film_id, const char *cinema_id, const char 
 void add_more_show(int sock, const char *cinema_id, const char *film_id, const char *token);
 void delete_show(int sock, const char *token);
 void edit_show(int sock, const char *token);
+void assign_role(int sock, const char *token);
 
 
 #endif // MENU_H
