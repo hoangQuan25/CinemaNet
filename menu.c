@@ -17,7 +17,7 @@ void main_menu(int sock) {
     char token[BUFFER_SIZE] = {0};
     char username[BUFFER_SIZE] = {0};
     int is_logged_in = 0; // 0: Not logged in, 1: Logged in
-    int user_role = 0;    // 0: Normal user, 1: Admin/Seller
+    int user_role = 1;    // 1: Normal user, 0: Seller
 
     while (1) {
         if (!is_logged_in) {
@@ -47,7 +47,7 @@ void main_menu(int sock) {
             }
         } else {
             // User is logged in
-            if (user_role == 0) {
+            if (user_role == 1) {
                 // Normal user menu
                 printf("\n===== CinemaNet =====\n");
                 printf("1. Search Films by Title\n");
@@ -77,39 +77,56 @@ void main_menu(int sock) {
                             is_logged_in = 0;
                             memset(token, 0, BUFFER_SIZE);
                             memset(username, 0, BUFFER_SIZE);
-                            user_role = 0;
+                            user_role = 1;
                         }
                         break;
                     default:
                         printf("Invalid choice. Please try again.\n");
                 }
-            } else if (user_role == 1) {
+            } else if (user_role == 0) {
                 // Admin/Seller menu
-                printf("\n===== CinemaNet (Admin) =====\n");
-                printf("1. Add New Film\n");
-                printf("2. Show Film\n");
-                printf("3. Edit Show\n");
-                printf("4. Logout\n");
+                printf("\n===== CinemaNet (Seller) =====\n");
+                printf("1. Search Films by Title\n");
+                printf("2. Browse Films\n");
+                printf("3. Book ticket\n");
+                printf("4. Change password\n");
+                printf("\n------- Seller features -------\n");
+                printf("5. Add New Film\n");
+                printf("6. Show Film\n");
+                printf("7. Edit Show\n");
+                printf("8. Logout\n");
                 printf("Enter your choice: ");
                 scanf("%d", &choice);
                 getchar(); // Consume newline
 
                 switch (choice) {
                     case 1:
-                        add_new_film(sock, token);
+                        search_films_by_title(sock, token);
                         break;
                     case 2:
-                        show_film(sock, token);
+                        browse_films(sock, token);
                         break;
                     case 3:
-                        modify_show(sock, token);
+                        book_ticket(sock, username, token);
                         break;
                     case 4:
+                        change_password(sock, token);
+                        break;
+                    case 5:
+                        add_new_film(sock, token);
+                        break;
+                    case 6:
+                        show_film(sock, token);
+                        break;
+                    case 7:
+                        modify_show(sock, token);
+                        break;
+                    case 8:
                         if (logout_user(sock, token)) {
                             is_logged_in = 0;
                             memset(token, 0, BUFFER_SIZE);
                             memset(username, 0, BUFFER_SIZE);
-                            user_role = 0;
+                            user_role = 1;
                         }
                         break;
                     default:
@@ -206,9 +223,9 @@ int login_user(int sock, char *token, char *username_out, int *user_role) {
         strcpy(username_out, username);
         // Set user role based on code
         if (strcmp(code, "1010") == 0) {
-            *user_role = 0; // Normal user
+            *user_role = 1; // Normal user
         } else if (strcmp(code, "1011") == 0) {
-            *user_role = 1; // Admin/Seller
+            *user_role = 0; // Admin/Seller
         }
         return 1; // Success
     } else if (strcmp(code, "2011") == 0) {
