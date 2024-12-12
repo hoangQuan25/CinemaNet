@@ -113,3 +113,17 @@ Before you begin, ensure you have met the following requirements:
    make
    ./server port_number
    ./client IP_address port_number
+
+5. **Thêm role admin:**
+
+có 3 role, user là 1, seller là 0, admin là 2 (fix cứng trong database)
+   ```bash
+   ALTER TABLE users DROP CHECK users_chk_1;
+
+  -- Or modify the constraint to include '2':
+  ALTER TABLE users
+  ADD CONSTRAINT users_chk_1 CHECK (role IN (0, 1, 2));
+
+sau đó thêm 1 user có role = 2 vào để dùng làm admin.
+admin có chức năng 8 - role assignment, để quản lý role các user khác.
+
