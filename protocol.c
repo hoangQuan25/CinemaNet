@@ -67,13 +67,13 @@ bool process_client_message(const char *message, char *response)
             strcpy(response, "2110\r\n");
         }
     }
-    else if (strcmp(command, "SEARCH_BY_TITLE") == 0)
+    else if (strcmp(command, "SEARCH_SHOWING_FILM_BY_TITLE") == 0)
     {
         char *title = strtok(NULL, "\r\n");
         char *token = strtok(NULL, "\r\n");
 
         char films[BUFFER_SIZE];
-        if (search_films_by_title_db(title, films))
+        if (search_showing_films_by_title_db(title, films))
         {
             sprintf(response, "2000\r\n%s\r\n", films);
         }
@@ -265,30 +265,19 @@ bool process_client_message(const char *message, char *response)
             strcpy(response, "5000\r\n");
         }
     }
-    else if (strcmp(command, "CHECK_FILM") == 0)
+    else if (strcmp(command, "SEARCH_FILM_BY_TITLE") == 0)
     {
-        char *film_name = strtok(NULL, "\r\n");
+        char *title = strtok(NULL, "\r\n");
         char *token = strtok(NULL, "\r\n");
 
-        // Verify token and seller role
-        if (!verify_token(token))
+        char films[BUFFER_SIZE];
+        if (search_films_by_title_db(title, films))
         {
-            strcpy(response, "4001\r\n"); // Unauthorized
-            free(msg_copy);
-            return false;
-        }
-
-        char film_id[BUFFER_SIZE];
-        char description[BUFFER_SIZE];
-        char length_str[BUFFER_SIZE];
-
-        if (check_film_db(film_name, film_id, description, length_str))
-        {
-            sprintf(response, "2000\r\n%s\r\n%s\r\n%s\r\n%s", film_id, film_name, description, length_str);
+            sprintf(response, "2000\r\n%s\r\n", films);
         }
         else
         {
-            strcpy(response, "2040\r\n"); // Film not found
+            strcpy(response, "2040\r\n");
         }
     }
     else if (strcmp(command, "SHOW_FILM") == 0)

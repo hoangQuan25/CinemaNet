@@ -275,7 +275,7 @@ void search_films_by_title(int sock, const char *token) {
     trim_newline(title);
 
     // Construct message
-    sprintf(message, "SEARCH_BY_TITLE\r\n%s\r\n%s", title, token);
+    sprintf(message, "SEARCH_SHOWING_FILM_BY_TITLE\r\n%s\r\n%s", title, token);
 
     // // Print the message being sent
     // printf("\n=== Message Sent to Server ===\n%s\n", message);
@@ -759,28 +759,14 @@ void show_film(int sock, const char *token) {
     char server_reply[BUFFER_SIZE];
     char cinemas[BUFFER_SIZE];
     char film_details[BUFFER_SIZE];
-    
-    // Step 1: Display list of cinemas
-    if (get_cinemas(sock, token, cinemas)) {
-        printf("Available Cinemas:\n");
-        display_cinemas(cinemas);
-    } else {
-        printf("An error occurred while fetching cinemas.\n");
-        return;
-    }
-    
-    // Seller selects a cinema
-    printf("Enter Cinema ID: ");
-    fgets(cinema_id, BUFFER_SIZE, stdin);
-    trim_newline(cinema_id);
 
-    // Step 2: Seller inputs film name
+    // Step 1: Seller inputs film name
     printf("Enter Film Name to schedule: ");
     fgets(film_name, BUFFER_SIZE, stdin);
     trim_newline(film_name);
     
     // Construct CHECK_FILM message
-    sprintf(message, "CHECK_FILM\r\n%s\r\n%s", film_name, token);
+    sprintf(message, "SEARCH_FILM_BY_TITLE\r\n%s\r\n%s", film_name, token);
     
     // Send CHECK_FILM request
     send(sock, message, strlen(message), 0);
@@ -793,24 +779,41 @@ void show_film(int sock, const char *token) {
     char *code = strtok(server_reply, "\r\n");
     if (strcmp(code, "2000") == 0) {
         // Film exists, extract film details
-        strcpy(film_id, strtok(NULL, "\r\n"));
-        char *film_name_resp = strtok(NULL, "\r\n");
-        char *description = strtok(NULL, "\r\n");
-        char *length = strtok(NULL, "\r\n");
+        char *film_data = strtok(NULL, "\r\n");
+        if (film_data == NULL) {
+            printf("No film data returned.\n");
+            return;
+        }
+
+        // Display all films found
+        printf("Films Found:\n");
+        display_films_with_length(film_data);
         
-        // Display film details to the seller
-        printf("Film Details:\n");
-        printf("Film ID: %s\n", film_id);
-        printf("Film Name: %s\n", film_name_resp);
-        printf("Description: %s\n", description);
-        printf("Length: %s minutes\n", length);
+        // Seller selects a film
+        printf("Enter film ID: ");
+        fgets(film_id, BUFFER_SIZE, stdin);
+        trim_newline(film_id);
     } else if (strcmp(code, "2040") == 0) {
         printf("Film not found.\n");
         return;
     } else {
-        printf("An error occurred while checking film.\n");
+        printf("An error occurred while searching film.\n");
         return;
     }
+
+    // Step 2: Display list of cinemas
+    if (get_cinemas(sock, token, cinemas)) {
+        printf("Available Cinemas:\n");
+        display_cinemas(cinemas);
+    } else {
+        printf("An error occurred while fetching cinemas.\n");
+        return;
+    }
+    
+    // Seller selects a cinema
+    printf("Enter Cinema ID: ");
+    fgets(cinema_id, BUFFER_SIZE, stdin);
+    trim_newline(cinema_id);
 
         // Step 3: Seller inputs date and time
     printf("Enter Date (yyyy-mm-dd): ");
