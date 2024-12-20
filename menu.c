@@ -492,7 +492,7 @@ void book_ticket(int sock, const char *username, const char *token) {
     trim_newline(title);
 
     // Construct message
-    sprintf(message, "SEARCH_BY_TITLE\r\n%s\r\n%s", title, token);
+    sprintf(message, "SEARCH_SHOWING_FILM_BY_TITLE\r\n%s\r\n%s", title, token);
 
     // Send message
     send(sock, message, strlen(message), 0);
